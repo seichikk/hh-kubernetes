@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-urgent
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      priorityClassName: hh-high
+      restartPolicy: Never
+      containers:
+        - name: pairs
+          image: hh-k8s:1
+          args: ["whole", "--workers", "3", "--tag", "k8s-urgent"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "3"
+              memory: 1152Mi
+            limits:
+              cpu: "3"
+              memory: 1152Mi

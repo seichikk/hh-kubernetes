@@ -1,0 +1,32 @@
+{
+  "mode": "k8s",
+  "parts": 12,
+  "reducers": 4,
+  "object_bytes": 847619384,
+  "rows_scanned": 229388,
+  "vacancies": 4356,
+  "with_skills": 3345,
+  "with_salary": 1442,
+  "emitted": [
+    22866,
+    92865,
+    310903
+  ],
+  "shuffled": 254308,
+  "unique": [
+    1164,
+    17198,
+    114332
+  ],
+  "sums": [
+    22866,
+    92865,
+    310903
+  ],
+  "combinations": [
+    22866,
+    92865,
+    310903
+  ],
+  "seconds_reduce": 0.878
+}

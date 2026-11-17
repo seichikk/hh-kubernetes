@@ -1,0 +1,169 @@
+
+==== сколько cpu свободно на рабочих узлах ====
+
+$ kubectl describe nodes hh-worker hh-worker2 | grep -E '^Name:|^  cpu  |^  memory  '
+Name:               hh-worker
+  cpu                210m (5%)    500m (12%)
+  memory             314Mi (11%)  256Mi (9%)
+Name:               hh-worker2
+  cpu                600m (15%)    2 (50%)
+  memory             1074Mi (38%)  2Gi (72%)
+
+==== все 12 частей сразу: parallelism 12, перед каждым чанком пауза 5 с ====
+
+$ diff k8s/31-map.yaml k8s/40-map-all.yaml
+4c4
+<   name: pairs-map
+---
+>   name: pairs-map-all
+10c10
+<   parallelism: 6
+---
+>   parallelism: 12
+17c17
+<           args: ["map"]
+---
+>           args: ["map", "--delay", "5"]
+
+$ kubectl apply -f k8s/40-map-all.yaml
+job.batch/pairs-map-all created
+
+$ kubectl -n hh get pods -o wide
+NAME                     READY   STATUS    RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-map-all-0-wqfld    1/1     Running   0          8s    10.244.1.146   hh-worker    <none>           <none>
+pairs-map-all-1-9p746    1/1     Running   0          8s    10.244.1.147   hh-worker    <none>           <none>
+pairs-map-all-10-wrj7f   0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-map-all-11-nr29g   0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-map-all-2-qb2l4    1/1     Running   0          8s    10.244.3.142   hh-worker2   <none>           <none>
+pairs-map-all-3-z2n8h    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-map-all-4-jwhzb    1/1     Running   0          8s    10.244.3.144   hh-worker2   <none>           <none>
+pairs-map-all-5-4bnvx    1/1     Running   0          8s    10.244.1.148   hh-worker    <none>           <none>
+pairs-map-all-6-8z95g    1/1     Running   0          8s    10.244.3.143   hh-worker2   <none>           <none>
+pairs-map-all-7-qwk4s    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-map-all-8-gggc2    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-map-all-9-67sdt    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+
+$ kubectl -n hh describe pod pairs-map-all-10-wrj7f | sed -n '/^Status:/p;/^Conditions:/,/^Volumes:/p;/^Events:/,$p'
+Status:           Pending
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  9s    default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+
+$ kubectl describe node hh-worker | sed -n '/^Non-terminated Pods:/,/^Events:/p'
+Non-terminated Pods:          (7 in total)
+  Namespace                   Name                               CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
+  ---------                   ----                               ------------  ----------  ---------------  -------------  ---
+  hh-s3                       s3-client-85b7d8dfd8-gthv7         10m (0%)      500m (12%)  64Mi (2%)        256Mi (9%)     39m
+  hh                          pairs-map-all-0-wqfld              1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  hh                          pairs-map-all-1-9p746              1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  hh                          pairs-map-all-5-4bnvx              1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  kube-system                 kindnet-nxw68                      100m (2%)     0 (0%)      50Mi (1%)        0 (0%)         21h
+  kube-system                 kube-proxy-dndkd                   0 (0%)        0 (0%)      0 (0%)           0 (0%)         21h
+  kube-system                 metrics-server-76558b4bb9-gkmkl    100m (2%)     0 (0%)      200Mi (7%)       0 (0%)         21h
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests      Limits
+  --------           --------      ------
+  cpu                3210m (80%)   3500m (87%)
+  memory             1274Mi (45%)  1216Mi (43%)
+  ephemeral-storage  0 (0%)        0 (0%)
+  hugepages-2Mi      0 (0%)        0 (0%)
+Events:
+
+$ kubectl describe node hh-worker2 | sed -n '/^Non-terminated Pods:/,/^Events:/p'
+Non-terminated Pods:          (6 in total)
+  Namespace                   Name                     CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
+  ---------                   ----                     ------------  ----------  ---------------  -------------  ---
+  hh-s3                       rustfs-0                 500m (12%)    2 (50%)     1Gi (36%)        2Gi (72%)      2m41s
+  hh                          pairs-map-all-2-qb2l4    1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  hh                          pairs-map-all-4-jwhzb    1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  hh                          pairs-map-all-6-8z95g    1 (25%)       1 (25%)     320Mi (11%)      320Mi (11%)    9s
+  kube-system                 kindnet-knglv            100m (2%)     0 (0%)      50Mi (1%)        0 (0%)         21h
+  kube-system                 kube-proxy-56fl9         0 (0%)        0 (0%)      0 (0%)           0 (0%)         21h
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests      Limits
+  --------           --------      ------
+  cpu                3600m (90%)   5 (125%)
+  memory             2034Mi (72%)  3008Mi (106%)
+  ephemeral-storage  0 (0%)        0 (0%)
+  hugepages-2Mi      0 (0%)        0 (0%)
+Events:
+
+$ kubectl -n hh top pods
+NAME                    CPU(cores)   MEMORY(bytes)   
+pairs-map-all-0-wqfld   189m         125Mi           
+pairs-map-all-1-9p746   197m         124Mi           
+pairs-map-all-2-qb2l4   192m         135Mi           
+pairs-map-all-4-jwhzb   232m         175Mi           
+pairs-map-all-5-4bnvx   193m         131Mi           
+pairs-map-all-6-8z95g   199m         124Mi           
+
+$ kubectl top nodes
+NAME               CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+hh-control-plane   346m         8%       1400Mi          49%         
+hh-worker          863m         21%      901Mi           31%         
+hh-worker2         985m         24%      1023Mi          36%         
+rustfs-0: перезапусков за опыт 0, anon до 729 миб, вместе с кэшем до 2046 миб, предел 2Gi, замеров 90
+
+$ kubectl -n hh get job pairs-map-all -o wide
+NAME            STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-map-all   Complete   12/12         43s        45s   map          hh-k8s:1   batch.kubernetes.io/controller-uid=96ca9e21-6a49-4a11-b88c-7a47696597c7
+
+$ kubectl -n hh get pods -o wide
+NAME                     READY   STATUS      RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-map-all-0-wqfld    0/1     Completed   0          45s   10.244.1.146   hh-worker    <none>           <none>
+pairs-map-all-1-9p746    0/1     Completed   0          45s   10.244.1.147   hh-worker    <none>           <none>
+pairs-map-all-10-wrj7f   0/1     Completed   0          45s   10.244.1.151   hh-worker    <none>           <none>
+pairs-map-all-11-nr29g   0/1     Completed   0          45s   10.244.3.146   hh-worker2   <none>           <none>
+pairs-map-all-2-qb2l4    0/1     Completed   0          45s   10.244.3.142   hh-worker2   <none>           <none>
+pairs-map-all-3-z2n8h    0/1     Completed   0          45s   10.244.1.149   hh-worker    <none>           <none>
+pairs-map-all-4-jwhzb    0/1     Completed   0          45s   10.244.3.144   hh-worker2   <none>           <none>
+pairs-map-all-5-4bnvx    0/1     Completed   0          45s   10.244.1.148   hh-worker    <none>           <none>
+pairs-map-all-6-8z95g    0/1     Completed   0          45s   10.244.3.143   hh-worker2   <none>           <none>
+pairs-map-all-7-qwk4s    0/1     Completed   0          45s   10.244.1.150   hh-worker    <none>           <none>
+pairs-map-all-8-gggc2    0/1     Completed   0          45s   10.244.3.145   hh-worker2   <none>           <none>
+pairs-map-all-9-67sdt    0/1     Completed   0          45s   10.244.3.147   hh-worker2   <none>           <none>
+
+$ kubectl -n hh get events --field-selector reason=FailedScheduling -o custom-columns='TIME:.lastTimestamp,COUNT:.count,POD:.involvedObject.name,MESSAGE:.message' | cut -c1-170
+TIME                   COUNT   POD                      MESSAGE
+2026-11-17T20:04:50Z   6       pairs-map-all-10-wrj7f   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+2026-11-17T20:04:50Z   3       pairs-map-all-11-nr29g   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+2026-11-17T20:04:29Z   1       pairs-map-all-3-z2n8h    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+2026-11-17T20:04:50Z   5       pairs-map-all-7-qwk4s    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+2026-11-17T20:04:49Z   2       pairs-map-all-8-gggc2    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+2026-11-17T20:04:50Z   4       pairs-map-all-9-67sdt    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are availab
+
+$ python3 scripts/timeline.py logs/04_pending/watch.log pending
+под                        узел         создан  на узле   конец  ждал, с  итог
+pairs-map-all-0-wqfld      hh-worker       0.0      0.0    20.3      0.0  готов
+pairs-map-all-1-9p746      hh-worker       0.0      0.0    21.4      0.0  готов
+pairs-map-all-2-qb2l4      hh-worker2      0.0      0.0    21.1      0.0  готов
+pairs-map-all-3-z2n8h      hh-worker       0.0     20.3    40.4     20.2  готов
+pairs-map-all-4-jwhzb      hh-worker2      0.0      0.1    21.1      0.0  готов
+pairs-map-all-5-4bnvx      hh-worker       0.0      0.1    21.4      0.0  готов
+pairs-map-all-6-8z95g      hh-worker2      0.0      0.0    21.1      0.0  готов
+pairs-map-all-7-qwk4s      hh-worker       0.1     21.4    42.4     21.3  готов
+pairs-map-all-8-gggc2      hh-worker2      0.1     21.1    42.2     21.0  готов
+pairs-map-all-9-67sdt      hh-worker2      0.1     21.2    42.2     21.1  готов
+pairs-map-all-10-wrj7f     hh-worker       0.1     21.4    42.4     21.3  готов
+pairs-map-all-11-nr29g     hh-worker2      0.1     21.1    42.2     21.1  готов
+подов: 12, ждали узел дольше 2 с: 6, самое долгое ожидание 21.3 с, вытеснено: 0, всё заняло 42.4 с
+
+==== reduce по частям этого запуска ====
+
+$ kubectl apply -f k8s/32-reduce.yaml
+job.batch/pairs-reduce created
+
+$ kubectl -n hh logs job/pairs-reduce | grep -E '^(части|частей|k[123]\.csv|топ-10 пар совпадает)'
+части посчитаны подами: pairs-map-all-0-wqfld, pairs-map-all-1-9p746, pairs-map-all-2-qb2l4, pairs-map-all-3-z2n8h, pairs-map-all-4-jwhzb, pairs-map-all-5-4bnvx, pairs-map-all-6-8z95g, pairs-map-all-7-qwk4s, pairs-map-all-8-gggc2, pairs-map-all-9-67sdt, pairs-map-all-10-wrj7f, pairs-map-all-11-nr29g
+частей 12, просмотрено записей: 229388, вакансий варианта: 4356 (с навыками 3345, с зарплатой 1442)
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+топ-10 пар совпадает с дз-3: да

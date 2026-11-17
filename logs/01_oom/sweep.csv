@@ -1,0 +1,8 @@
+предел,исход,код,время,пик
+256,OOMKilled,137,3,
+384,OOMKilled,137,4,
+512,OOMKilled,137,4,
+640,OOMKilled,137,5,
+768,Completed,0,18,768
+896,Completed,0,19,775
+1152,Completed,0,20,777

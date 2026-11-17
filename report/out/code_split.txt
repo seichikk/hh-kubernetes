@@ -1,0 +1,43 @@
+def split(a):
+    s3 = c.client()
+    head = s3.head_object(Bucket=c.BUCKET, Key=c.KEY)
+    size, etag = head["ContentLength"], head["ETag"]
+    step = a.scan_mib << 20
+    targets = [size * i // a.parts for i in range(1, a.parts)]
+    cuts = []
+    fields = None
+    quotes = 0
+    offset = 0
+    t0 = time.perf_counter()
+    while offset < size:
+        end = min(offset + step, size) - 1
+        buf = s3.get_object(Bucket=c.BUCKET, Key=c.KEY, Range=f"bytes={offset}-{end}", IfMatch=etag)["Body"].read()
+        if fields is None:
+            skip = 3 if buf.startswith(mr.BOM) else 0
+            nl = buf.find(b"\n")
+            fields = next(csv.reader([buf[skip:nl].decode("utf-8").rstrip("\r")]))
+            missing = [f for f in c.REQUIRED if f not in fields]
+            if missing:
+                raise SystemExit("в датасете нет колонок: " + ", ".join(missing))
+            cuts.append(nl + 1)
+        while len(cuts) <= len(targets) and targets[len(cuts) - 1] < offset + len(buf):
+            cut = boundary(buf, max(targets[len(cuts) - 1] - offset, 0), quotes)
+            if cut < 0:
+                break
+            cuts.append(max(offset + cut, cuts[-1]))
+        quotes += buf.count(b'"')
+        offset += len(buf)
+    while len(cuts) <= len(targets):
+        cuts.append(size)
+    cuts.append(size)
+    parts = [[cuts[i], cuts[i + 1]] for i in range(a.parts)]
+    plan = {"key": c.KEY, "etag": etag, "size": size, "fields": fields, "parts": parts}
+    c.put_bytes(s3, f"k8s/{RUN}/splits.json", json.dumps(plan, ensure_ascii=False).encode("utf-8"), "application/json")
+    print(f"объект s3://{c.BUCKET}/{c.KEY}: {size} байт ({c.human_bytes(size)}), etag {etag}")
+    print(f"кавычек в файле: {quotes}, чётное число: {'да' if quotes % 2 == 0 else 'НЕТ'}")
+    for i, (lo, hi) in enumerate(parts):
+        print(f"  часть {i:>2}: байты {lo:>9}..{hi - 1:>9}, {c.human_bytes(hi - lo)}")
+    print(f"частей: {a.parts}, сумма размеров {sum(hi - lo for lo, hi in parts)} байт, заголовок {cuts[0]} байт")
+    print(f"план записан в s3://{c.BUCKET}/k8s/{RUN}/splits.json за {time.perf_counter() - t0:.2f} с")
+    resources()
+    return 0

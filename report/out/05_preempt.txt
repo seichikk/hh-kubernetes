@@ -1,0 +1,196 @@
+
+==== два класса приоритета ====
+
+$ cat k8s/50-priority.yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: hh-low
+value: 1000
+description: плановые пересчёты, их можно вытеснять
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: hh-high
+value: 100000
+description: срочные расчёты
+
+$ kubectl apply -f k8s/50-priority.yaml
+priorityclass.scheduling.k8s.io/hh-low unchanged
+priorityclass.scheduling.k8s.io/hh-high unchanged
+
+$ kubectl get priorityclass
+NAME                      VALUE        GLOBAL-DEFAULT   AGE   PREEMPTIONPOLICY
+hh-high                   100000       false            25m   PreemptLowerPriority
+hh-low                    1000         false            25m   PreemptLowerPriority
+system-cluster-critical   2000000000   false            21h   PreemptLowerPriority
+system-node-critical      2000001000   false            21h   PreemptLowerPriority
+
+==== плановая задача с низким приоритетом занимает оба рабочих узла ====
+
+$ diff k8s/40-map-all.yaml k8s/51-map-low.yaml
+4c4
+<   name: pairs-map-all
+---
+>   name: pairs-low
+7a8,12
+>   podFailurePolicy:
+>     rules:
+>       - action: Ignore
+>         onPodConditions:
+>           - type: DisruptionTarget
+12a18
+>       priorityClassName: hh-low
+
+$ kubectl apply -f k8s/51-map-low.yaml
+job.batch/pairs-low created
+
+$ kubectl -n hh get pods -o wide
+NAME                 READY   STATUS    RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-low-0-ld7j9    1/1     Running   0          5s    10.244.1.153   hh-worker    <none>           <none>
+pairs-low-1-lfmhr    1/1     Running   0          5s    10.244.1.154   hh-worker    <none>           <none>
+pairs-low-10-27sxt   0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+pairs-low-11-5pmdr   0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+pairs-low-2-gsqws    1/1     Running   0          5s    10.244.3.148   hh-worker2   <none>           <none>
+pairs-low-3-tt57h    1/1     Running   0          4s    10.244.1.155   hh-worker    <none>           <none>
+pairs-low-4-gt9qb    0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+pairs-low-5-5q4df    1/1     Running   0          4s    10.244.3.150   hh-worker2   <none>           <none>
+pairs-low-6-9wtxz    1/1     Running   0          4s    10.244.3.149   hh-worker2   <none>           <none>
+pairs-low-7-9nxxb    0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+pairs-low-8-9x8nq    0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+pairs-low-9-426jf    0/1     Pending   0          4s    <none>         <none>       <none>           <none>
+
+==== срочная задача с высоким приоритетом: ей нужно 3 cpu на одном узле ====
+
+$ cat k8s/52-urgent.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-urgent
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      priorityClassName: hh-high
+      restartPolicy: Never
+      containers:
+        - name: pairs
+          image: hh-k8s:1
+          args: ["whole", "--workers", "3", "--tag", "k8s-urgent"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "3"
+              memory: 1152Mi
+            limits:
+              cpu: "3"
+              memory: 1152Mi
+
+15:05:45.503 kubectl apply -f k8s/52-urgent.yaml
+job.batch/pairs-urgent created
+15:05:49.668
+
+$ kubectl -n hh get pods -o wide
+NAME                 READY   STATUS    RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-low-10-27sxt   0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-low-11-5pmdr   0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-low-2-gsqws    1/1     Running   0          9s    10.244.3.148   hh-worker2   <none>           <none>
+pairs-low-4-gt9qb    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-low-5-5q4df    1/1     Running   0          8s    10.244.3.150   hh-worker2   <none>           <none>
+pairs-low-6-9wtxz    1/1     Running   0          8s    10.244.3.149   hh-worker2   <none>           <none>
+pairs-low-7-9nxxb    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-low-8-9x8nq    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-low-9-426jf    0/1     Pending   0          8s    <none>         <none>       <none>           <none>
+pairs-urgent-hp7m7   1/1     Running   0          4s    10.244.1.156   hh-worker    <none>           <none>
+
+$ kubectl -n hh get events --field-selector reason=Preempted -o custom-columns='TIME:.lastTimestamp,POD:.involvedObject.name,MESSAGE:.message'
+TIME                   POD                 MESSAGE
+2026-11-17T20:05:45Z   pairs-low-0-ld7j9   Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+2026-11-17T20:05:45Z   pairs-low-1-lfmhr   Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+2026-11-17T20:05:45Z   pairs-low-3-tt57h   Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+
+$ kubectl -n hh describe pod pairs-urgent-hp7m7 | sed -n '/^Priority/p;/^Events:/,$p'
+Priority:             100000
+Priority Class Name:  hh-high
+Events:
+  Type     Reason            Age              From               Message
+  ----     ------            ----             ----               -------
+  Warning  FailedScheduling  5s               default-scheduler  0/3 nodes are available: 1 Insufficient memory, 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: found a potential placement for pod on node hh-worker, preempting 3 victims
+  Warning  FailedScheduling  5s (x2 over 5s)  default-scheduler  0/3 nodes are available: 1 Insufficient memory, 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: not eligible due to a terminating pod on the nominated node.
+  Normal   Scheduled         5s               default-scheduler  Successfully assigned hh/pairs-urgent-hp7m7 to hh-worker
+  Normal   Pulled            4s               kubelet            spec.containers{pairs}: Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+  Normal   Created           4s               kubelet            spec.containers{pairs}: Container created
+  Normal   Started           4s               kubelet            spec.containers{pairs}: Container started
+
+$ kubectl -n hh logs job/pairs-urgent | grep -E '^(время|k[123]\.csv|топ-10 пар совпадает|память|процессор)'
+время: всего 6.31 с, map 5.95 с (из них чтение s3 2.24 с), reduce 0.36 с
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 837 миб (877912064 байт), предел 1152 миб, занято 73% предела
+процессор: 19.5 с, предел 3 cpu, притормаживаний 13 на 0.3 с
+rustfs-0: перезапусков за опыт 0, anon до 788 миб, вместе с кэшем до 2048 миб, предел 2Gi, замеров 121
+
+$ kubectl -n hh get jobs -o wide
+NAME           STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-low      Complete   12/12         60s        61s   map          hh-k8s:1   batch.kubernetes.io/controller-uid=bae1b97c-8c7e-41e0-88be-3e7cbd4a9d89
+pairs-urgent   Complete   1/1           13s        56s   pairs        hh-k8s:1   batch.kubernetes.io/controller-uid=a53b4301-d8a4-467e-b8f7-952c2a70ea69
+
+$ kubectl -n hh get pods -o wide
+NAME                 READY   STATUS      RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-low-0-r75zz    0/1     Completed   0          40s   10.244.1.160   hh-worker    <none>           <none>
+pairs-low-1-rxnm9    0/1     Completed   0          40s   10.244.1.161   hh-worker    <none>           <none>
+pairs-low-10-27sxt   0/1     Completed   0          61s   10.244.1.159   hh-worker    <none>           <none>
+pairs-low-11-5pmdr   0/1     Completed   0          61s   10.244.3.151   hh-worker2   <none>           <none>
+pairs-low-2-gsqws    0/1     Completed   0          62s   10.244.3.148   hh-worker2   <none>           <none>
+pairs-low-3-stxct    0/1     Completed   0          40s   10.244.1.162   hh-worker    <none>           <none>
+pairs-low-4-gt9qb    0/1     Completed   0          61s   10.244.1.157   hh-worker    <none>           <none>
+pairs-low-5-5q4df    0/1     Completed   0          61s   10.244.3.150   hh-worker2   <none>           <none>
+pairs-low-6-9wtxz    0/1     Completed   0          61s   10.244.3.149   hh-worker2   <none>           <none>
+pairs-low-7-9nxxb    0/1     Completed   0          61s   10.244.1.158   hh-worker    <none>           <none>
+pairs-low-8-9x8nq    0/1     Completed   0          61s   10.244.3.152   hh-worker2   <none>           <none>
+pairs-low-9-426jf    0/1     Completed   0          61s   10.244.3.153   hh-worker2   <none>           <none>
+pairs-urgent-hp7m7   0/1     Completed   0          57s   10.244.1.156   hh-worker    <none>           <none>
+
+$ kubectl -n hh get job pairs-low -o 'jsonpath={.status.succeeded} готово, {.status.failed} в счётчике ошибок{"\n"}'
+12 готово,  в счётчике ошибок
+
+$ python3 scripts/timeline.py logs/05_preempt/watch.log preempt --urgent pairs-urgent
+под                        узел         создан  на узле   конец  ждал, с  итог
+pairs-low-0-ld7j9          hh-worker       0.0      0.0     4.7      0.0  вытеснен
+pairs-low-0-r75zz          hh-worker      21.3     38.2    58.3     16.9  готов
+pairs-low-1-lfmhr          hh-worker       0.0      0.0     4.7      0.0  вытеснен
+pairs-low-1-rxnm9          hh-worker      21.3     38.2    58.3     16.9  готов
+pairs-low-2-gsqws          hh-worker2      0.0      0.0    21.0      0.0  готов
+pairs-low-3-tt57h          hh-worker       0.0      0.1     4.7      0.0  вытеснен
+pairs-low-3-stxct          hh-worker      21.3     38.3    58.3     17.0  готов
+pairs-low-4-gt9qb          hh-worker       0.0     17.2    38.2     17.1  готов
+pairs-low-5-5q4df          hh-worker2      0.0      0.1    20.9      0.0  готов
+pairs-low-6-9wtxz          hh-worker2      0.0      0.1    20.9      0.0  готов
+pairs-low-7-9nxxb          hh-worker       0.1     17.2    38.2     17.1  готов
+pairs-low-8-9x8nq          hh-worker2      0.1     20.9    40.9     20.9  готов
+pairs-low-9-426jf          hh-worker2      0.1     21.0    40.9     20.9  готов
+pairs-low-10-27sxt         hh-worker       0.1     17.2    38.3     17.1  готов
+pairs-low-11-5pmdr         hh-worker2      0.1     20.9    40.9     20.8  готов
+pairs-urgent-hp7m7         hh-worker       4.6      5.0    17.2      0.4  готов
+подов: 16, ждали узел дольше 2 с: 9, самое долгое ожидание 20.9 с, вытеснено: 3, всё заняло 58.3 с
+
+==== reduce по частям плановой задачи ====
+
+$ kubectl apply -f k8s/32-reduce.yaml
+job.batch/pairs-reduce created
+
+$ kubectl -n hh logs job/pairs-reduce | grep -E '^(части|частей|k[123]\.csv|топ-10 пар совпадает)'
+части посчитаны подами: pairs-low-0-r75zz, pairs-low-1-rxnm9, pairs-low-2-gsqws, pairs-low-3-stxct, pairs-low-4-gt9qb, pairs-low-5-5q4df, pairs-low-6-9wtxz, pairs-low-7-9nxxb, pairs-low-8-9x8nq, pairs-low-9-426jf, pairs-low-10-27sxt, pairs-low-11-5pmdr
+частей 12, просмотрено записей: 229388, вакансий варианта: 4356 (с навыками 3345, с зарплатой 1442)
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+топ-10 пар совпадает с дз-3: да

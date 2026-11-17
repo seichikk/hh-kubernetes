@@ -1,0 +1,99 @@
+Name:             rustfs-0
+Namespace:        hh-s3
+Priority:         0
+Service Account:  default
+Node:             hh-worker2/172.22.0.3
+Start Time:       Tue, 17 Nov 2026 14:21:43 -0500
+Labels:           app=rustfs
+                  apps.kubernetes.io/pod-index=0
+                  controller-revision-hash=rustfs-7dd968c456
+                  statefulset.kubernetes.io/pod-name=rustfs-0
+Annotations:      <none>
+Status:           Running
+IP:               10.244.3.17
+IPs:
+  IP:           10.244.3.17
+Controlled By:  StatefulSet/rustfs
+Containers:
+  rustfs:
+    Container ID:   containerd://321d60a9f17f7bed23cc492d0c8a010a175448dfc825080ddd2280d33edafee7
+    Image:          rustfs/rustfs:1.0.1
+    Image ID:       docker.io/rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    Ports:          9000/TCP (s3), 9001/TCP (console)
+    Host Ports:     0/TCP (s3), 0/TCP (console)
+    State:          Running
+      Started:      Tue, 17 Nov 2026 14:48:59 -0500
+    Last State:     Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
+      Started:      Tue, 17 Nov 2026 14:24:29 -0500
+      Finished:     Tue, 17 Nov 2026 14:48:58 -0500
+    Ready:          True
+    Restart Count:  1
+    Limits:
+      cpu:     2
+      memory:  1Gi
+    Requests:
+      cpu:      500m
+      memory:   512Mi
+    Readiness:  http-get http://:s3/health/live delay=0s timeout=1s period=2s #success=1 #failure=3
+    Environment:
+      RUSTFS_VOLUMES:                   /data/rustfs{1...4}
+      RUSTFS_ACCESS_KEY:                <set to the key 'S3_ACCESS_KEY' in secret 's3-keys'>  Optional: false
+      RUSTFS_SECRET_KEY:                <set to the key 'S3_SECRET_KEY' in secret 's3-keys'>  Optional: false
+      RUSTFS_ADDRESS:                   0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE:            true
+      RUSTFS_CONSOLE_ADDRESS:           0.0.0.0:9001
+      RUSTFS_UNSAFE_BYPASS_DISK_CHECK:  true
+      RUSTFS_OBS_LOGGER_LEVEL:          warn
+    Mounts:
+      /data/rustfs1 from disk1 (rw)
+      /data/rustfs2 from disk2 (rw)
+      /data/rustfs3 from disk3 (rw)
+      /data/rustfs4 from disk4 (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-vmlg6 (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  disk1:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  disk1-rustfs-0
+    ReadOnly:   false
+  disk2:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  disk2-rustfs-0
+    ReadOnly:   false
+  disk3:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  disk3-rustfs-0
+    ReadOnly:   false
+  disk4:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  disk4-rustfs-0
+    ReadOnly:   false
+  kube-api-access-vmlg6:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason     Age                     From               Message
+  ----     ------     ----                    ----               -------
+  Normal   Scheduled  30m                     default-scheduler  Successfully assigned hh-s3/rustfs-0 to hh-worker2
+  Normal   Pulling    30m                     kubelet            spec.containers{rustfs}: Pulling image "rustfs/rustfs:1.0.1"
+  Normal   Pulled     27m                     kubelet            spec.containers{rustfs}: Successfully pulled image "rustfs/rustfs:1.0.1" in 2m45.504s (2m45.504s including waiting). Image size: 111133450 bytes.
+  Warning  Unhealthy  4m29s (x13 over 4m58s)  kubelet            spec.containers{rustfs}: Readiness probe failed: Get "http://10.244.3.17:9000/health/live": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+  Normal   Created    3m6s (x2 over 27m)      kubelet            spec.containers{rustfs}: Container created
+  Normal   Started    3m6s (x2 over 27m)      kubelet            spec.containers{rustfs}: Container started
+  Warning  Unhealthy  3m6s (x2 over 27m)      kubelet            spec.containers{rustfs}: Readiness probe failed: Get "http://10.244.3.17:9000/health/live": dial tcp 10.244.3.17:9000: connect: connection refused
+  Normal   Pulled     3m6s                    kubelet            spec.containers{rustfs}: Container image "rustfs/rustfs:1.0.1" already present on machine and can be accessed by the pod

@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-reduce
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: reduce
+          image: hh-k8s:1
+          args: ["reduce", "--tag", "k8s-parts"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

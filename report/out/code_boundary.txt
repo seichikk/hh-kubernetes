@@ -1,0 +1,11 @@
+def boundary(buf, start, quotes):
+    q = quotes + buf.count(b'"', 0, start)
+    pos = start
+    while True:
+        nl = buf.find(b"\n", pos)
+        if nl < 0:
+            return -1
+        q += buf.count(b'"', pos, nl)
+        if q % 2 == 0:
+            return nl + 1
+        pos = nl + 1

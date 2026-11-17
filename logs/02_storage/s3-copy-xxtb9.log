@@ -1,0 +1,11 @@
+откуда: http://host.docker.internal:19000, куда: http://rustfs:9000, бакет hh-lake
+бакет hh-lake создан
+  raw/it_vacancies_2024.csv: 847619384 байт, sha256 303db922b541e4440906f5a7e8be32fb55e8808f950ffddb8c272f1548212a65, после переноса совпал: да
+  results/mapreduce/k1.csv: 23779 байт, sha256 cd0880521cf20e6bd88b00b818643f8eb496dc5ef11efbb81fcbcc25e1de9b80, после переноса совпал: да
+  results/mapreduce/k2.csv: 482273 байт, sha256 ce075fd4e1d7d5a58bb366a5086cfe87e2205da8dd9664d0db12c80d1d3312ee, после переноса совпал: да
+  results/mapreduce/k3.csv: 4142254 байт, sha256 a0fd213179d8fcec1cb1edb5b0281f3cab70027dd212894d1842212037a08216, после переноса совпал: да
+  results/mapreduce/summary.json: 652 байт, sha256 5a2b56d775ce15428aa3a28318ed8980a3e4b02d05807494c46720d31cbbfe2c, после переноса совпал: да
+  results/mapreduce/vacancies.jsonl: 1264674 байт, sha256 d9edded238b5915eeb606a266103a010486e7c057d0415581dda4d3de97d0d22, после переноса совпал: да
+перенесено 853533016 байт (813.99 миб) за 20.8 с
+память контейнера: пик 264 миб (277135360 байт), предел 512 миб, занято 52% предела
+процессор: 18.3 с, предел 1 cpu, притормаживаний 94 на 1.6 с

@@ -1,0 +1,263 @@
+
+==== хранилище пока снаружи кластера: контейнер rustfs из дз-3 ====
+
+$ docker ps --filter name=^rustfs$ --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+NAMES     IMAGE                 STATUS              PORTS
+rustfs    rustfs/rustfs:1.0.1   Up About a minute   127.0.0.1:19000->9000/tcp, 127.0.0.1:19001->9001/tcp
+
+$ cat k8s/01-s3-outside.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3
+  namespace: hh
+data:
+  S3_ENDPOINT: http://host.docker.internal:19000
+  S3_BUCKET: hh-lake
+  S3_KEY: raw/it_vacancies_2024.csv
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-keys
+  namespace: hh
+stringData:
+  S3_ACCESS_KEY: rustfsadmin
+  S3_SECRET_KEY: rustfsadmin
+
+$ kubectl apply -f k8s/01-s3-outside.yaml
+configmap/s3 unchanged
+secret/s3-keys configured
+
+==== первый запуск: предел памяти 256Mi взят наугад ====
+
+$ cat k8s/10-whole-oom.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-oom
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pairs
+          image: hh-k8s:1
+          args: ["whole", "--workers", "3", "--tag", "k8s-whole"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "3"
+              memory: 256Mi
+            limits:
+              cpu: "3"
+              memory: 256Mi
+
+$ kubectl apply -f k8s/10-whole-oom.yaml
+job.batch/pairs-oom created
+
+$ kubectl -n hh get pods -o wide
+NAME              READY   STATUS      RESTARTS   AGE   IP           NODE         NOMINATED NODE   READINESS GATES
+pairs-oom-62964   0/1     OOMKilled   0          7s    10.244.3.2   hh-worker2   <none>           <none>
+
+$ kubectl -n hh describe pod pairs-oom-62964 | sed -n '/^    State:/,/^    Requests:/p;/^QoS Class:/p'
+    State:          Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
+      Started:      Tue, 17 Nov 2026 14:16:46 -0500
+      Finished:     Tue, 17 Nov 2026 14:16:49 -0500
+    Ready:          False
+    Restart Count:  0
+    Limits:
+      cpu:     3
+      memory:  256Mi
+    Requests:
+QoS Class:                   Guaranteed
+
+$ kubectl -n hh logs pairs-oom-62964
+объект s3://hh-lake/raw/it_vacancies_2024.csv: 847619384 байт (808.35 миб)
+режим opt: чанк 32 миб (около 26 range get), мапперов 3, редьюсеров 4
+
+$ kubectl -n hh get job pairs-oom -o 'jsonpath={range .status.conditions[*]}{.type}={.status} {.reason}: {.message}{"\n"}{end}'
+FailureTarget=True BackoffLimitExceeded: Job has reached the specified backoff limit
+Failed=True BackoffLimitExceeded: Job has reached the specified backoff limit
+
+$ docker exec hh-worker2 dmesg | grep 'Memory cgroup out of memory' | tail -n 1 | cut -c1-200
+[   88.004894] Memory cgroup out of memory: Killed process 4223 (python) total-vm:30980kB, anon-rss:13552kB, file-rss:8kB, shmem-rss:0kB, UID:0 pgtables:96kB oom_score_adj:-997
+
+==== замер пика: тот же расчёт с пределом 2Gi, три запуска ====
+
+$ sed "s/name: pairs-oom/name: pairs-measure-1/; s/memory: 256Mi/memory: 2Gi/" k8s/10-whole-oom.yaml | kubectl apply -f -
+job.batch/pairs-measure-1 created
+
+$ kubectl -n hh logs job/pairs-measure-1
+объект s3://hh-lake/raw/it_vacancies_2024.csv: 847619384 байт (808.35 миб)
+режим opt: чанк 32 миб (около 26 range get), мапперов 3, редьюсеров 4
+прочитано из s3: 847619384 байт за 26 range get, это весь объект: да
+map-задач: 26, просмотрено записей: 229388, вакансий варианта: 4356 (с навыками 3345, с зарплатой 1442)
+записей ушло в shuffle: 287150 (до combiner было бы 426634)
+k=1: уникальных сочетаний 1164, сумма частот 22866, сумма C(n,1) по вакансиям 22866, совпадает: да; топ: c# = 2237
+k=2: уникальных сочетаний 17198, сумма частот 92865, сумма C(n,2) по вакансиям 92865, совпадает: да; топ: .net framework + c# = 793
+k=3: уникальных сочетаний 114332, сумма частот 310903, сумма C(n,3) по вакансиям 310903, совпадает: да; топ: asp.net + c# + postgresql = 266
+время: всего 16.62 с, map 16.35 с (из них чтение s3 14.93 с), reduce 0.27 с
+  сохранено s3://hh-lake/results/k8s-whole/k1.csv (23779 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/k2.csv (482273 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/k3.csv (4142254 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/vacancies.jsonl (1264674 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/summary.json (654 байт), sha256 после чтения обратно совпал: да
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+vacancies.jsonl: sha256 d9edded238b5915e..., в дз-3 d9edded238b5915e..., совпадает: да
+топ-10 пар навыков:
+   1. .net framework + c#              793
+   2. asp.net + c#                     735
+   3. c# + git                         657
+   4. c# + postgresql                  653
+   5. c# + sql                         648
+   6. .net core + c#                   536
+   7. c# + ms sql                      448
+   8. asp.net + postgresql             425
+   9. c# + entity framework            391
+  10. .net framework + asp.net         358
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 895 миб (937979904 байт), предел 2048 миб, занято 44% предела
+процессор: 26.0 с, предел 3 cpu, притормаживаний 14 на 0.3 с
+
+$ sed "s/name: pairs-oom/name: pairs-measure-2/; s/memory: 256Mi/memory: 2Gi/" k8s/10-whole-oom.yaml | kubectl apply -f -
+job.batch/pairs-measure-2 created
+
+$ kubectl -n hh logs job/pairs-measure-2 | grep -E '^(время|топ-10 пар совпадает|память|процессор)'
+время: всего 16.34 с, map 16.04 с (из них чтение s3 14.66 с), reduce 0.29 с
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 781 миб (819130368 байт), предел 2048 миб, занято 38% предела
+процессор: 23.9 с, предел 3 cpu, притормаживаний 14 на 0.4 с
+
+$ sed "s/name: pairs-oom/name: pairs-measure-3/; s/memory: 256Mi/memory: 2Gi/" k8s/10-whole-oom.yaml | kubectl apply -f -
+job.batch/pairs-measure-3 created
+
+$ kubectl -n hh logs job/pairs-measure-3 | grep -E '^(время|топ-10 пар совпадает|память|процессор)'
+время: всего 16.33 с, map 16.06 с (из них чтение s3 14.66 с), reduce 0.26 с
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 774 миб (811995136 байт), предел 2048 миб, занято 38% предела
+процессор: 23.0 с, предел 3 cpu, притормаживаний 16 на 0.3 с
+
+пики трёх запусков, миб: 895 781 774; максимум 895
+предел = максимум * 1.25 с округлением вверх до 64 миб = 1152 миб
+
+$ cat logs/01_oom/top-measure-1.txt
+14:17:15 pairs-measure-1-v7h7t   1248m   832Mi   
+kubectl top за первый запуск: замеров 1, максимум 832 миб, а memory.peak 895 миб
+
+==== границы: тот же расчёт с разными пределами ====
+предел  256 миб: OOMKilled код 137 работал   3 с, пик -
+предел  384 миб: OOMKilled код 137 работал   4 с, пик -
+предел  512 миб: OOMKilled код 137 работал   4 с, пик -
+предел  640 миб: OOMKilled код 137 работал   5 с, пик -
+предел  768 миб: Completed код 0   работал  18 с, пик 768
+предел  896 миб: Completed код 0   работал  19 с, пик 775
+предел 1152 миб: Completed код 0   работал  20 с, пик 777
+
+$ kubectl -n hh get pods
+NAME                    READY   STATUS      RESTARTS   AGE
+pairs-measure-1-v7h7t   0/1     Completed   0          2m44s
+pairs-measure-2-prhxg   0/1     Completed   0          2m20s
+pairs-measure-3-wfs68   0/1     Completed   0          117s
+pairs-mem-1152-d856q    0/1     Completed   0          24s
+pairs-mem-384-94cg4     0/1     OOMKilled   0          93s
+pairs-mem-512-t82zs     0/1     OOMKilled   0          86s
+pairs-mem-640-9tj2l     0/1     OOMKilled   0          79s
+pairs-mem-768-dr2p4     0/1     Completed   0          69s
+pairs-mem-896-bf2p9     0/1     Completed   0          47s
+pairs-oom-62964         0/1     OOMKilled   0          2m52s
+
+==== итоговый запуск с подобранным пределом 1152Mi ====
+
+$ cat k8s/12-whole.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-whole
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pairs
+          image: hh-k8s:1
+          args: ["whole", "--workers", "3", "--tag", "k8s-whole"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "3"
+              memory: 1152Mi
+            limits:
+              cpu: "3"
+              memory: 1152Mi
+
+$ kubectl apply -f k8s/12-whole.yaml
+job.batch/pairs-whole created
+
+$ kubectl -n hh get job pairs-whole -o wide
+NAME          STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-whole   Complete   1/1           23s        24s   pairs        hh-k8s:1   batch.kubernetes.io/controller-uid=3028e091-913e-4954-ac7e-4a1734d630f0
+
+$ kubectl -n hh describe pod pairs-whole-s2xcd | sed -n '/^    State:/,/^    Requests:/p;/^QoS Class:/p'
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Tue, 17 Nov 2026 14:19:38 -0500
+      Finished:     Tue, 17 Nov 2026 14:19:58 -0500
+    Ready:          False
+    Restart Count:  0
+    Limits:
+      cpu:     3
+      memory:  1152Mi
+    Requests:
+QoS Class:                   Guaranteed
+
+$ kubectl -n hh logs pairs-whole-s2xcd
+объект s3://hh-lake/raw/it_vacancies_2024.csv: 847619384 байт (808.35 миб)
+режим opt: чанк 32 миб (около 26 range get), мапперов 3, редьюсеров 4
+прочитано из s3: 847619384 байт за 26 range get, это весь объект: да
+map-задач: 26, просмотрено записей: 229388, вакансий варианта: 4356 (с навыками 3345, с зарплатой 1442)
+записей ушло в shuffle: 287150 (до combiner было бы 426634)
+k=1: уникальных сочетаний 1164, сумма частот 22866, сумма C(n,1) по вакансиям 22866, совпадает: да; топ: c# = 2237
+k=2: уникальных сочетаний 17198, сумма частот 92865, сумма C(n,2) по вакансиям 92865, совпадает: да; топ: .net framework + c# = 793
+k=3: уникальных сочетаний 114332, сумма частот 310903, сумма C(n,3) по вакансиям 310903, совпадает: да; топ: asp.net + c# + postgresql = 266
+время: всего 16.74 с, map 16.36 с (из них чтение s3 14.96 с), reduce 0.37 с
+  сохранено s3://hh-lake/results/k8s-whole/k1.csv (23779 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/k2.csv (482273 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/k3.csv (4142254 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/vacancies.jsonl (1264674 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-whole/summary.json (655 байт), sha256 после чтения обратно совпал: да
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+vacancies.jsonl: sha256 d9edded238b5915e..., в дз-3 d9edded238b5915e..., совпадает: да
+топ-10 пар навыков:
+   1. .net framework + c#              793
+   2. asp.net + c#                     735
+   3. c# + git                         657
+   4. c# + postgresql                  653
+   5. c# + sql                         648
+   6. .net core + c#                   536
+   7. c# + ms sql                      448
+   8. asp.net + postgresql             425
+   9. c# + entity framework            391
+  10. .net framework + asp.net         358
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 778 миб (815452160 байт), предел 1152 миб, занято 68% предела
+процессор: 24.5 с, предел 3 cpu, притормаживаний 16 на 0.4 с

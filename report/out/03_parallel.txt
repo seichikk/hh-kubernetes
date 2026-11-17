@@ -1,0 +1,272 @@
+
+==== план: 12 частей с границами по концам записей ====
+
+$ cat k8s/30-split.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-split
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: split
+          image: hh-k8s:1
+          args: ["split", "--parts", "12"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "1"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+
+$ kubectl apply -f k8s/30-split.yaml
+job.batch/pairs-split created
+
+$ kubectl -n hh logs job/pairs-split
+объект s3://hh-lake/raw/it_vacancies_2024.csv: 847619384 байт (808.35 миб), etag "0e6d21890db664d9bf83e1427665b106-13"
+кавычек в файле: 965700, чётное число: да
+  часть  0: байты       222.. 70635591, 67.36 миб
+  часть  1: байты  70635592..141271831, 67.36 миб
+  часть  2: байты 141271832..211909621, 67.37 миб
+  часть  3: байты 211909622..282539906, 67.36 миб
+  часть  4: байты 282539907..353176470, 67.36 миб
+  часть  5: байты 353176471..423810886, 67.36 миб
+  часть  6: байты 423810887..494447139, 67.36 миб
+  часть  7: байты 494447140..565082527, 67.36 миб
+  часть  8: байты 565082528..635715090, 67.36 миб
+  часть  9: байты 635715091..706350436, 67.36 миб
+  часть 10: байты 706350437..776988016, 67.37 миб
+  часть 11: байты 776988017..847619383, 67.36 миб
+частей: 12, сумма размеров 847619162 байт, заголовок 222 байт
+план записан в s3://hh-lake/k8s/parts/splits.json за 3.09 с
+память контейнера: пик 92 миб (96415744 байт), предел 256 миб, занято 36% предела
+процессор: 3.2 с, предел 1 cpu, притормаживаний 1 на 0.0 с
+
+==== замер пика памяти одной части: предел 1Gi ====
+
+$ sed "s/name: pairs-map/name: pairs-map-probe/; s/memory: [0-9]*Mi/memory: 1Gi/" k8s/31-map.yaml | kubectl apply -f -
+job.batch/pairs-map-probe created
+
+$ grep -h -E '^(часть|память)' logs/03_parallel/pairs-map-probe-*.log | sed 's/, узел.*//; s/ ([0-9]* байт)//' | paste - - | sort -t' ' -k2 -n
+часть 0 из 12: байты 222..70635591 (67.36 миб)  память контейнера: пик 219 миб, предел 1024 миб, занято 21% предела
+часть 1 из 12: байты 70635592..141271831 (67.36 миб)    память контейнера: пик 221 миб, предел 1024 миб, занято 22% предела
+часть 2 из 12: байты 141271832..211909621 (67.37 миб)   память контейнера: пик 221 миб, предел 1024 миб, занято 22% предела
+часть 3 из 12: байты 211909622..282539906 (67.36 миб)   память контейнера: пик 220 миб, предел 1024 миб, занято 21% предела
+часть 4 из 12: байты 282539907..353176470 (67.36 миб)   память контейнера: пик 219 миб, предел 1024 миб, занято 21% предела
+часть 5 из 12: байты 353176471..423810886 (67.36 миб)   память контейнера: пик 221 миб, предел 1024 миб, занято 22% предела
+часть 6 из 12: байты 423810887..494447139 (67.36 миб)   память контейнера: пик 219 миб, предел 1024 миб, занято 21% предела
+часть 7 из 12: байты 494447140..565082527 (67.36 миб)   память контейнера: пик 224 миб, предел 1024 миб, занято 22% предела
+часть 8 из 12: байты 565082528..635715090 (67.36 миб)   память контейнера: пик 222 миб, предел 1024 миб, занято 22% предела
+часть 9 из 12: байты 635715091..706350436 (67.36 миб)   память контейнера: пик 224 миб, предел 1024 миб, занято 22% предела
+часть 10 из 12: байты 706350437..776988016 (67.37 миб)  память контейнера: пик 219 миб, предел 1024 миб, занято 21% предела
+часть 11 из 12: байты 776988017..847619383 (67.36 миб)  память контейнера: пик 220 миб, предел 1024 миб, занято 22% предела
+
+пик по частям: от 219 до 224 миб; предел = 224 * 1.25 с округлением вверх до 64 миб = 320 миб
+
+==== расчёт параллельными задачами: 12 частей, по 6 подов одновременно ====
+
+$ cat k8s/31-map.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-map
+  namespace: hh
+spec:
+  backoffLimit: 3
+  completionMode: Indexed
+  completions: 12
+  parallelism: 6
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: map
+          image: hh-k8s:1
+          args: ["map"]
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "1"
+              memory: 320Mi
+            limits:
+              cpu: "1"
+              memory: 320Mi
+
+$ kubectl apply -f k8s/31-map.yaml
+job.batch/pairs-map created
+
+$ kubectl -n hh get pods -o wide
+NAME                READY   STATUS      RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-map-0-j6skw   0/1     Completed   0          6s    10.244.1.139   hh-worker    <none>           <none>
+pairs-map-1-cfrk5   0/1     Completed   0          6s    10.244.3.136   hh-worker2   <none>           <none>
+pairs-map-2-hqltr   0/1     Completed   0          6s    10.244.1.140   hh-worker    <none>           <none>
+pairs-map-3-p2msm   0/1     Completed   0          6s    10.244.1.141   hh-worker    <none>           <none>
+pairs-map-4-cf8ql   0/1     Completed   0          6s    10.244.3.138   hh-worker2   <none>           <none>
+pairs-map-5-h9nb2   0/1     Completed   0          6s    10.244.3.137   hh-worker2   <none>           <none>
+pairs-split-q68fk   0/1     Completed   0          38s   10.244.1.130   hh-worker    <none>           <none>
+rustfs-0: перезапусков за опыт 0, anon до 597 миб, вместе с кэшем до 2046 миб, предел 2Gi, замеров 31
+
+$ kubectl -n hh get job pairs-map -o wide
+NAME        STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-map   Complete   12/12         14s        16s   map          hh-k8s:1   batch.kubernetes.io/controller-uid=58d7c5d8-7dd2-4916-98a1-035c5bc9ff7e
+
+$ kubectl -n hh get pods -o wide
+NAME                 READY   STATUS      RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-map-0-j6skw    0/1     Completed   0          16s   10.244.1.139   hh-worker    <none>           <none>
+pairs-map-1-cfrk5    0/1     Completed   0          16s   10.244.3.136   hh-worker2   <none>           <none>
+pairs-map-10-xwtkp   0/1     Completed   0          9s    10.244.3.140   hh-worker2   <none>           <none>
+pairs-map-11-d57wq   0/1     Completed   0          8s    10.244.3.141   hh-worker2   <none>           <none>
+pairs-map-2-hqltr    0/1     Completed   0          16s   10.244.1.140   hh-worker    <none>           <none>
+pairs-map-3-p2msm    0/1     Completed   0          16s   10.244.1.141   hh-worker    <none>           <none>
+pairs-map-4-cf8ql    0/1     Completed   0          16s   10.244.3.138   hh-worker2   <none>           <none>
+pairs-map-5-h9nb2    0/1     Completed   0          16s   10.244.3.137   hh-worker2   <none>           <none>
+pairs-map-6-lfwng    0/1     Completed   0          9s    10.244.1.142   hh-worker    <none>           <none>
+pairs-map-7-28k5n    0/1     Completed   0          9s    10.244.1.143   hh-worker    <none>           <none>
+pairs-map-8-h9rxl    0/1     Completed   0          9s    10.244.3.139   hh-worker2   <none>           <none>
+pairs-map-9-7kj86    0/1     Completed   0          9s    10.244.1.144   hh-worker    <none>           <none>
+pairs-split-q68fk    0/1     Completed   0          48s   10.244.1.130   hh-worker    <none>           <none>
+
+$ grep -h -E '^(часть|память)' logs/03_parallel/pairs-map-[0-9]*.log | sed 's/: байты.*, узел/ на/; s/ ([0-9]* байт)//' | paste - - | sort -t' ' -k2 -n
+часть 0 из 12 на hh-worker      память контейнера: пик 219 миб, предел 320 миб, занято 68% предела
+часть 1 из 12 на hh-worker2     память контейнера: пик 220 миб, предел 320 миб, занято 69% предела
+часть 2 из 12 на hh-worker      память контейнера: пик 220 миб, предел 320 миб, занято 69% предела
+часть 3 из 12 на hh-worker      память контейнера: пик 219 миб, предел 320 миб, занято 69% предела
+часть 4 из 12 на hh-worker2     память контейнера: пик 219 миб, предел 320 миб, занято 68% предела
+часть 5 из 12 на hh-worker2     память контейнера: пик 223 миб, предел 320 миб, занято 70% предела
+часть 6 из 12 на hh-worker      память контейнера: пик 219 миб, предел 320 миб, занято 68% предела
+часть 7 из 12 на hh-worker      память контейнера: пик 226 миб, предел 320 миб, занято 71% предела
+часть 8 из 12 на hh-worker2     память контейнера: пик 254 миб, предел 320 миб, занято 79% предела
+часть 9 из 12 на hh-worker      память контейнера: пик 224 миб, предел 320 миб, занято 70% предела
+часть 10 из 12 на hh-worker2    память контейнера: пик 237 миб, предел 320 миб, занято 74% предела
+часть 11 из 12 на hh-worker2    память контейнера: пик 220 миб, предел 320 миб, занято 69% предела
+
+$ python3 scripts/timeline.py logs/03_parallel/watch.log parallel
+под                        узел         создан  на узле   конец  ждал, с  итог
+pairs-map-0-j6skw          hh-worker       0.0      0.0     6.0      0.0  готов
+pairs-map-1-cfrk5          hh-worker2      0.0      0.0     5.7      0.0  готов
+pairs-map-2-hqltr          hh-worker       0.0      0.0     6.0      0.0  готов
+pairs-map-3-p2msm          hh-worker       0.0      0.0     5.9      0.0  готов
+pairs-map-4-cf8ql          hh-worker2      0.0      0.0     6.7      0.0  готов
+pairs-map-5-h9nb2          hh-worker2      0.0      0.0     5.7      0.0  готов
+pairs-map-6-lfwng          hh-worker       6.5      6.6    12.1      0.0  готов
+pairs-map-7-28k5n          hh-worker       6.6      6.6    12.1      0.0  готов
+pairs-map-8-h9rxl          hh-worker2      6.6      6.6    12.9      0.0  готов
+pairs-map-9-7kj86          hh-worker       6.6      6.6    13.1      0.0  готов
+pairs-map-10-xwtkp         hh-worker2      6.6      6.6    12.9      0.0  готов
+pairs-map-11-d57wq         hh-worker2      7.6      7.6    13.8      0.0  готов
+подов: 12, ждали узел дольше 2 с: 0, самое долгое ожидание 0.0 с, вытеснено: 0, всё заняло 13.8 с
+
+==== reduce: слияние частей и сверка с дз-3 ====
+
+$ cat k8s/32-reduce.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-reduce
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: reduce
+          image: hh-k8s:1
+          args: ["reduce", "--tag", "k8s-parts"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+
+$ kubectl apply -f k8s/32-reduce.yaml
+job.batch/pairs-reduce created
+
+$ kubectl -n hh logs job/pairs-reduce
+части посчитаны подами: pairs-map-0-j6skw, pairs-map-1-cfrk5, pairs-map-2-hqltr, pairs-map-3-p2msm, pairs-map-4-cf8ql, pairs-map-5-h9nb2, pairs-map-6-lfwng, pairs-map-7-28k5n, pairs-map-8-h9rxl, pairs-map-9-7kj86, pairs-map-10-xwtkp, pairs-map-11-d57wq
+частей 12, просмотрено записей: 229388, вакансий варианта: 4356 (с навыками 3345, с зарплатой 1442)
+k=1: уникальных сочетаний 1164, сумма частот 22866, сумма C(n,1) по вакансиям 22866, совпадает: да
+k=2: уникальных сочетаний 17198, сумма частот 92865, сумма C(n,2) по вакансиям 92865, совпадает: да
+k=3: уникальных сочетаний 114332, сумма частот 310903, сумма C(n,3) по вакансиям 310903, совпадает: да
+  сохранено s3://hh-lake/results/k8s-parts/k1.csv (23779 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-parts/k2.csv (482273 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-parts/k3.csv (4142254 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-parts/vacancies.jsonl (1264674 байт), sha256 после чтения обратно совпал: да
+  сохранено s3://hh-lake/results/k8s-parts/summary.json (435 байт), sha256 после чтения обратно совпал: да
+k1.csv: sha256 cd0880521cf20e6b..., в дз-3 cd0880521cf20e6b..., совпадает: да
+k2.csv: sha256 ce075fd4e1d7d5a5..., в дз-3 ce075fd4e1d7d5a5..., совпадает: да
+k3.csv: sha256 a0fd213179d8fcec..., в дз-3 a0fd213179d8fcec..., совпадает: да
+vacancies.jsonl: sha256 d9edded238b5915e..., в дз-3 d9edded238b5915e..., совпадает: да
+топ-10 пар навыков:
+   1. .net framework + c#              793
+   2. asp.net + c#                     735
+   3. c# + git                         657
+   4. c# + postgresql                  653
+   5. c# + sql                         648
+   6. .net core + c#                   536
+   7. c# + ms sql                      448
+   8. asp.net + postgresql             425
+   9. c# + entity framework            391
+  10. .net framework + asp.net         358
+топ-10 пар совпадает с дз-3: да
+память контейнера: пик 162 миб (169689088 байт), предел 512 миб, занято 32% предела
+процессор: 3.6 с, предел 1 cpu, притормаживаний 0 на 0.0 с
+
+==== результат на компьютере и сравнение с файлами дз-3 ====
+
+$ shasum -a 256 results/hw3/k*.csv results/k8s/k*.csv
+cd0880521cf20e6bd88b00b818643f8eb496dc5ef11efbb81fcbcc25e1de9b80  results/hw3/k1.csv
+ce075fd4e1d7d5a58bb366a5086cfe87e2205da8dd9664d0db12c80d1d3312ee  results/hw3/k2.csv
+a0fd213179d8fcec1cb1edb5b0281f3cab70027dd212894d1842212037a08216  results/hw3/k3.csv
+cd0880521cf20e6bd88b00b818643f8eb496dc5ef11efbb81fcbcc25e1de9b80  results/k8s/k1.csv
+ce075fd4e1d7d5a58bb366a5086cfe87e2205da8dd9664d0db12c80d1d3312ee  results/k8s/k2.csv
+a0fd213179d8fcec1cb1edb5b0281f3cab70027dd212894d1842212037a08216  results/k8s/k3.csv
+
+$ head -n 11 results/k8s/k2.csv
+skill_1,skill_2,count
+.net framework,c#,793
+asp.net,c#,735
+c#,git,657
+c#,postgresql,653
+c#,sql,648
+.net core,c#,536
+c#,ms sql,448
+asp.net,postgresql,425
+c#,entity framework,391
+.net framework,asp.net,358
+
+$ diff <(head -n 11 results/hw3/k2.csv) <(head -n 11 results/k8s/k2.csv) && echo 'топ-10 пар: отличий нет'
+топ-10 пар: отличий нет
+
+$ cmp results/hw3/k1.csv results/k8s/k1.csv && cmp results/hw3/k2.csv results/k8s/k2.csv && cmp results/hw3/k3.csv results/k8s/k3.csv && echo 'k1, k2, k3: файлы совпадают побайтно'
+k1, k2, k3: файлы совпадают побайтно

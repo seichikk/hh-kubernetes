@@ -1,0 +1,73 @@
+Name:             pairs-whole-s2xcd
+Namespace:        hh
+Priority:         0
+Service Account:  default
+Node:             hh-worker2/172.22.0.3
+Start Time:       Tue, 17 Nov 2026 14:19:38 -0500
+Labels:           batch.kubernetes.io/controller-uid=3028e091-913e-4954-ac7e-4a1734d630f0
+                  batch.kubernetes.io/job-name=pairs-whole
+                  controller-uid=3028e091-913e-4954-ac7e-4a1734d630f0
+                  job-name=pairs-whole
+Annotations:      <none>
+Status:           Succeeded
+IP:               10.244.3.12
+IPs:
+  IP:           10.244.3.12
+Controlled By:  Job/pairs-whole
+Containers:
+  pairs:
+    Container ID:  containerd://18e2404a5f2a5f632519cf7492cf046a9a1098b5af7ffe154a9f964ba375841d
+    Image:         hh-k8s:1
+    Image ID:      docker.io/library/import-2026-11-16@sha256:a542eff778a16cd6171b68a181283de3451367376ff2c4ede72a08cb882818ad
+    Port:          <none>
+    Host Port:     <none>
+    Args:
+      whole
+      --workers
+      3
+      --tag
+      k8s-whole
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Tue, 17 Nov 2026 14:19:38 -0500
+      Finished:     Tue, 17 Nov 2026 14:19:58 -0500
+    Ready:          False
+    Restart Count:  0
+    Limits:
+      cpu:     3
+      memory:  1152Mi
+    Requests:
+      cpu:     3
+      memory:  1152Mi
+    Environment Variables from:
+      s3          ConfigMap  Optional: false
+      s3-keys     Secret     Optional: false
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-ggv2v (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   False 
+  Initialized                 True 
+  Ready                       False 
+  ContainersReady             False 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-ggv2v:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Guaranteed
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  25s   default-scheduler  Successfully assigned hh/pairs-whole-s2xcd to hh-worker2
+  Normal  Pulled     25s   kubelet            spec.containers{pairs}: Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+  Normal  Created    25s   kubelet            spec.containers{pairs}: Container created
+  Normal  Started    25s   kubelet            spec.containers{pairs}: Container started

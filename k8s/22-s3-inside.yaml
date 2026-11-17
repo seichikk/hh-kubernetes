@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3
+  namespace: hh
+data:
+  S3_ENDPOINT: http://rustfs.hh-s3:9000
+  S3_BUCKET: hh-lake
+  S3_KEY: raw/it_vacancies_2024.csv

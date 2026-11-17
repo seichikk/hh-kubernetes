@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-map
+  namespace: hh
+spec:
+  backoffLimit: 3
+  completionMode: Indexed
+  completions: 12
+  parallelism: 6
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: map
+          image: hh-k8s:1
+          args: ["map"]
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "1"
+              memory: 320Mi
+            limits:
+              cpu: "1"
+              memory: 320Mi

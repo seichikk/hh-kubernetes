@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pairs-oom
+  namespace: hh
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pairs
+          image: hh-k8s:1
+          args: ["whole", "--workers", "3", "--tag", "k8s-whole"]
+          envFrom:
+            - configMapRef:
+                name: s3
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: "3"
+              memory: 256Mi
+            limits:
+              cpu: "3"
+              memory: 256Mi

@@ -1,0 +1,57 @@
+Name:             pairs-map-all-10-wrj7f
+Namespace:        hh
+Priority:         0
+Service Account:  default
+Node:             <none>
+Labels:           batch.kubernetes.io/controller-uid=96ca9e21-6a49-4a11-b88c-7a47696597c7
+                  batch.kubernetes.io/job-completion-index=10
+                  batch.kubernetes.io/job-name=pairs-map-all
+                  controller-uid=96ca9e21-6a49-4a11-b88c-7a47696597c7
+                  job-name=pairs-map-all
+Annotations:      batch.kubernetes.io/job-completion-index: 10
+Status:           Pending
+IP:               
+IPs:              <none>
+Controlled By:    Job/pairs-map-all
+Containers:
+  map:
+    Image:      hh-k8s:1
+    Port:       <none>
+    Host Port:  <none>
+    Args:
+      map
+      --delay
+      5
+    Limits:
+      cpu:     1
+      memory:  320Mi
+    Requests:
+      cpu:     1
+      memory:  320Mi
+    Environment Variables from:
+      s3       ConfigMap  Optional: false
+      s3-keys  Secret     Optional: false
+    Environment:
+      POD_NAME:              pairs-map-all-10-wrj7f (v1:metadata.name)
+      NODE_NAME:              (v1:spec.nodeName)
+      JOB_COMPLETION_INDEX:   (v1:metadata.labels['batch.kubernetes.io/job-completion-index'])
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-z2tc4 (ro)
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+  kube-api-access-z2tc4:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Guaranteed
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  9s    default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.

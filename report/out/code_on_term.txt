@@ -1,0 +1,3 @@
+def on_term(signum, frame):
+    print("получен sigterm, расчёт остановлен", flush=True)
+    os._exit(143)

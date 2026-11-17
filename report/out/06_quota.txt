@@ -1,0 +1,130 @@
+
+==== квота на пространство имён hh ====
+
+$ cat k8s/60-quota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hh-quota
+  namespace: hh
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 2Gi
+    pods: "8"
+
+$ kubectl apply -f k8s/60-quota.yaml
+resourcequota/hh-quota created
+
+$ kubectl -n hh describe resourcequota hh-quota
+Name:            hh-quota
+Namespace:       hh
+Resource         Used  Hard
+--------         ----  ----
+limits.cpu       0     4
+limits.memory    0     2Gi
+pods             0     8
+requests.cpu     0     4
+requests.memory  0     2Gi
+
+==== под без заявок и пределов ====
+
+$ kubectl -n hh run no-limits --image=hh-k8s:1 --restart=Never -- ls
+Error from server (Forbidden): pods "no-limits" is forbidden: failed quota: hh-quota: must specify limits.cpu for: no-limits; limits.memory for: no-limits; requests.cpu for: no-limits; requests.memory for: no-limits
+
+==== та же задача из 12 частей, теперь под квотой ====
+
+$ kubectl apply -f k8s/40-map-all.yaml
+job.batch/pairs-map-all created
+
+$ kubectl -n hh get pods -o wide
+NAME                    READY   STATUS    RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+pairs-map-all-0-zbc5k   1/1     Running   0          8s    10.244.1.164   hh-worker    <none>           <none>
+pairs-map-all-1-jfhrx   1/1     Running   0          8s    10.244.1.165   hh-worker    <none>           <none>
+pairs-map-all-2-tr6w7   1/1     Running   0          8s    10.244.3.154   hh-worker2   <none>           <none>
+pairs-map-all-6-8fxfr   1/1     Running   0          8s    10.244.3.155   hh-worker2   <none>           <none>
+
+$ kubectl -n hh describe resourcequota hh-quota
+Name:            hh-quota
+Namespace:       hh
+Resource         Used    Hard
+--------         ----    ----
+limits.cpu       4       4
+limits.memory    1280Mi  2Gi
+pods             4       8
+requests.cpu     4       4
+requests.memory  1280Mi  2Gi
+
+$ kubectl -n hh describe job pairs-map-all | sed -n '/^Parallelism:/p;/^Pods Statuses:/p;/^Events:/,$p' | cut -c1-260
+Parallelism:        12
+Pods Statuses:      4 Active (4 Ready) / 0 Succeeded / 0 Failed
+Events:
+  Type     Reason            Age   From            Message
+  ----     ------            ----  ----            -------
+  Normal   SuccessfulCreate  8s    job-controller  Created pod: pairs-map-all-0-zbc5k
+  Normal   SuccessfulCreate  8s    job-controller  Created pod: pairs-map-all-2-tr6w7
+  Normal   SuccessfulCreate  8s    job-controller  Created pod: pairs-map-all-1-jfhrx
+  Warning  FailedCreate      8s    job-controller  Error creating: pods "pairs-map-all-4-xhd2x" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+  Warning  FailedCreate      8s    job-controller  Error creating: pods "pairs-map-all-3-mg6nl" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+  Warning  FailedCreate      8s    job-controller  Error creating: pods "pairs-map-all-5-299cm" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+  Normal   SuccessfulCreate  8s    job-controller  Created pod: pairs-map-all-6-8fxfr
+  Warning  FailedCreate      7s    job-controller  Error creating: pods "pairs-map-all-3-2vtnw" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+  Warning  FailedCreate      6s    job-controller  Error creating: pods "pairs-map-all-3-lz7rd" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+  Warning  FailedCreate      2s    job-controller  Error creating: pods "pairs-map-all-3-gbs9m" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+
+==== срочная задача с высоким приоритетом при занятой квоте ====
+15:07:23.358 kubectl apply -f k8s/52-urgent.yaml
+job.batch/pairs-urgent created
+
+$ kubectl -n hh get jobs -o wide
+NAME            STATUS    COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-map-all   Running   0/12          13s        13s   map          hh-k8s:1   batch.kubernetes.io/controller-uid=d35f5249-fc07-41e2-8d82-b2a82d03dfb2
+pairs-urgent    Running   0/1           5s         5s    pairs        hh-k8s:1   batch.kubernetes.io/controller-uid=7890bae5-ce80-46cf-8364-85948d56754b
+
+$ kubectl -n hh describe job pairs-urgent | sed -n '/^Pods Statuses:/p;/^Events:/,$p' | cut -c1-260
+Pods Statuses:    0 Active (0 Ready) / 0 Succeeded / 0 Failed
+Events:
+  Type     Reason        Age   From            Message
+  ----     ------        ----  ----            -------
+  Warning  FailedCreate  5s    job-controller  Error creating: pods "pairs-urgent-jhcmd" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,request
+  Warning  FailedCreate  4s    job-controller  Error creating: pods "pairs-urgent-zfvp2" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,request
+  Warning  FailedCreate  2s    job-controller  Error creating: pods "pairs-urgent-7vhdm" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,request
+
+15:08:17.177 pairs-map-all завершена
+15:08:38.241 pairs-urgent завершена
+rustfs-0: перезапусков за опыт 0, anon до 779 миб, вместе с кэшем до 2048 миб, предел 2Gi, замеров 167
+
+$ kubectl -n hh get jobs -o wide
+NAME            STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES     SELECTOR
+pairs-map-all   Complete   12/12         61s        84s   map          hh-k8s:1   batch.kubernetes.io/controller-uid=d35f5249-fc07-41e2-8d82-b2a82d03dfb2
+pairs-urgent    Complete   1/1           74s        76s   pairs        hh-k8s:1   batch.kubernetes.io/controller-uid=7890bae5-ce80-46cf-8364-85948d56754b
+
+$ kubectl -n hh get events --field-selector reason=FailedCreate -o custom-columns='JOB:.involvedObject.name,COUNT:.count' --no-headers | awk '{ n[$1] += $2 } END { for (j in n) print j ": отказов exceeded quota " n[j] }'
+pairs-urgent: отказов exceeded quota 6
+pairs-map-all: отказов exceeded quota 15
+
+$ python3 scripts/timeline.py logs/06_quota/watch.log quota --urgent pairs-urgent --since pairs-map-all=1794946034.884 --since pairs-urgent=1794946043.332
+под                        узел         создан  на узле   конец  ждал, с  итог
+pairs-map-all-0-zbc5k      hh-worker       0.1      0.2    19.6      0.0  готов
+pairs-map-all-1-jfhrx      hh-worker       0.2      0.2    19.6      0.0  готов
+pairs-map-all-2-tr6w7      hh-worker2      0.2      0.2    20.3      0.0  готов
+pairs-map-all-3-dbbnr      hh-worker      20.5     20.5    39.6      0.0  готов
+pairs-map-all-4-fdzcd      hh-worker      20.5     20.5    40.7      0.0  готов
+pairs-map-all-5-8fwrm      hh-worker2     20.5     20.5    40.3      0.0  готов
+pairs-map-all-6-8fxfr      hh-worker2      0.2      0.2    20.2      0.0  готов
+pairs-map-all-7-nmzvb      hh-worker2     40.6     40.6    60.4      0.0  готов
+pairs-map-all-8-m26dl      hh-worker2     40.6     40.6    60.4      0.0  готов
+pairs-map-all-9-dvvnh      hh-worker      40.6     40.6    59.7      0.0  готов
+pairs-map-all-10-2phh2     hh-worker2     20.5     20.6    40.3      0.0  готов
+pairs-map-all-11-vr8nd     hh-worker      41.6     41.6    60.7      0.0  готов
+pairs-urgent-hmgc8         hh-worker      71.6     71.6    81.8      0.0  готов
+задание pairs-map-all создано на 0.0 с
+задание pairs-urgent создано на 8.4 с
+подов: 13, ждали узел дольше 2 с: 0, самое долгое ожидание 0.0 с, вытеснено: 0, всё заняло 81.8 с, дольше всего под не создавался 63.2 с
+
+==== квота снята ====
+
+$ kubectl -n hh delete resourcequota hh-quota
+resourcequota "hh-quota" deleted from hh namespace

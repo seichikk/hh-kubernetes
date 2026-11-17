@@ -1,0 +1,42 @@
+LAST SEEN   TYPE      REASON                  OBJECT                                 MESSAGE
+30m         Normal    WaitForFirstConsumer    persistentvolumeclaim/disk3-rustfs-0   waiting for first consumer to be created before binding
+30m         Normal    Provisioning            persistentvolumeclaim/disk4-rustfs-0   External provisioner is provisioning volume for claim "hh-s3/disk4-rustfs-0"
+30m         Normal    Provisioning            persistentvolumeclaim/disk1-rustfs-0   External provisioner is provisioning volume for claim "hh-s3/disk1-rustfs-0"
+30m         Normal    SuccessfulCreate        statefulset/rustfs                     Create Pod rustfs-0 in StatefulSet rustfs successful
+30m         Normal    WaitForFirstConsumer    persistentvolumeclaim/disk2-rustfs-0   waiting for first consumer to be created before binding
+30m         Normal    SuccessfulCreate        statefulset/rustfs                     Create Claim disk1-rustfs-0 Pod rustfs-0 in StatefulSet rustfs success
+30m         Normal    Provisioning            persistentvolumeclaim/disk2-rustfs-0   External provisioner is provisioning volume for claim "hh-s3/disk2-rustfs-0"
+30m         Normal    WaitForFirstConsumer    persistentvolumeclaim/disk1-rustfs-0   waiting for first consumer to be created before binding
+30m         Normal    SuccessfulCreate        statefulset/rustfs                     Create Claim disk2-rustfs-0 Pod rustfs-0 in StatefulSet rustfs success
+30m         Normal    Provisioning            persistentvolumeclaim/disk3-rustfs-0   External provisioner is provisioning volume for claim "hh-s3/disk3-rustfs-0"
+30m         Normal    SuccessfulCreate        statefulset/rustfs                     Create Claim disk3-rustfs-0 Pod rustfs-0 in StatefulSet rustfs success
+30m         Normal    SuccessfulCreate        statefulset/rustfs                     Create Claim disk4-rustfs-0 Pod rustfs-0 in StatefulSet rustfs success
+30m         Normal    WaitForFirstConsumer    persistentvolumeclaim/disk4-rustfs-0   waiting for first consumer to be created before binding
+30m         Normal    ExternalProvisioning    persistentvolumeclaim/disk2-rustfs-0   Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.
+30m         Normal    ExternalProvisioning    persistentvolumeclaim/disk4-rustfs-0   Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.
+30m         Normal    ExternalProvisioning    persistentvolumeclaim/disk3-rustfs-0   Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.
+30m         Normal    ExternalProvisioning    persistentvolumeclaim/disk1-rustfs-0   Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.
+30m         Normal    ProvisioningSucceeded   persistentvolumeclaim/disk4-rustfs-0   Successfully provisioned volume pvc-9d1229ea-58ce-42c8-abd5-d6e95674bdcf
+30m         Normal    ProvisioningSucceeded   persistentvolumeclaim/disk2-rustfs-0   Successfully provisioned volume pvc-7acd8457-99e0-4e7d-8c4c-1f1ce75783d7
+30m         Normal    ProvisioningSucceeded   persistentvolumeclaim/disk3-rustfs-0   Successfully provisioned volume pvc-1e564d43-acd1-4ae5-9446-1b0cbe5efb6c
+30m         Normal    Scheduled               pod/rustfs-0                           Successfully assigned hh-s3/rustfs-0 to hh-worker2
+30m         Normal    ProvisioningSucceeded   persistentvolumeclaim/disk1-rustfs-0   Successfully provisioned volume pvc-03929f48-c8b9-40e7-a409-ee7f234bcd2e
+30m         Normal    Pulling                 pod/rustfs-0                           Pulling image "rustfs/rustfs:1.0.1"
+27m         Normal    Pulled                  pod/rustfs-0                           Successfully pulled image "rustfs/rustfs:1.0.1" in 2m45.504s (2m45.504s including waiting). Image size: 111133450 bytes.
+27m         Normal    SuccessfulCreate        job/s3-copy                            Created pod: s3-copy-94sc7
+27m         Normal    Scheduled               pod/s3-copy-94sc7                      Successfully assigned hh-s3/s3-copy-94sc7 to hh-worker
+27m         Normal    Started                 pod/s3-copy-94sc7                      Container started
+27m         Normal    Created                 pod/s3-copy-94sc7                      Container created
+27m         Normal    Pulled                  pod/s3-copy-94sc7                      Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+27m         Normal    Completed               job/s3-copy                            Job completed
+27m         Normal    Pulled                  pod/s3-client-85b7d8dfd8-gthv7         Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+27m         Normal    Created                 pod/s3-client-85b7d8dfd8-gthv7         Container created
+27m         Normal    Started                 pod/s3-client-85b7d8dfd8-gthv7         Container started
+27m         Normal    SuccessfulCreate        replicaset/s3-client-85b7d8dfd8        Created pod: s3-client-85b7d8dfd8-gthv7
+27m         Normal    ScalingReplicaSet       deployment/s3-client                   Scaled up replica set s3-client-85b7d8dfd8 from 0 to 1
+27m         Normal    Scheduled               pod/s3-client-85b7d8dfd8-gthv7         Successfully assigned hh-s3/s3-client-85b7d8dfd8-gthv7 to hh-worker
+4m29s       Warning   Unhealthy               pod/rustfs-0                           Readiness probe failed: Get "http://10.244.3.17:9000/health/live": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+3m6s        Normal    Pulled                  pod/rustfs-0                           Container image "rustfs/rustfs:1.0.1" already present on machine and can be accessed by the pod
+3m6s        Warning   Unhealthy               pod/rustfs-0                           Readiness probe failed: Get "http://10.244.3.17:9000/health/live": dial tcp 10.244.3.17:9000: connect: connection refused
+3m6s        Normal    Started                 pod/rustfs-0                           Container started
+3m6s        Normal    Created                 pod/rustfs-0                           Container created

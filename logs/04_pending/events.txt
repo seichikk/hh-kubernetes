@@ -1,0 +1,66 @@
+LAST SEEN   TYPE      REASON             OBJECT                       MESSAGE
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-3-z2n8h
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-0-wqfld
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-1-9p746
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-2-qb2l4
+47s         Normal    Scheduled          pod/pairs-map-all-1-9p746    Successfully assigned hh/pairs-map-all-1-9p746 to hh-worker
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-5-4bnvx
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-6-8z95g
+47s         Normal    Scheduled          pod/pairs-map-all-6-8z95g    Successfully assigned hh/pairs-map-all-6-8z95g to hh-worker2
+47s         Normal    Scheduled          pod/pairs-map-all-5-4bnvx    Successfully assigned hh/pairs-map-all-5-4bnvx to hh-worker
+47s         Normal    Scheduled          pod/pairs-map-all-4-jwhzb    Successfully assigned hh/pairs-map-all-4-jwhzb to hh-worker2
+47s         Normal    SuccessfulCreate   job/pairs-map-all            (combined from similar events): Created pod: pairs-map-all-7-qwk4s
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-11-nr29g
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-8-gggc2
+47s         Warning   FailedScheduling   pod/pairs-map-all-3-z2n8h    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+47s         Normal    Scheduled          pod/pairs-map-all-2-qb2l4    Successfully assigned hh/pairs-map-all-2-qb2l4 to hh-worker2
+47s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-4-jwhzb
+47s         Normal    Scheduled          pod/pairs-map-all-0-wqfld    Successfully assigned hh/pairs-map-all-0-wqfld to hh-worker
+46s         Normal    Pulled             pod/pairs-map-all-6-8z95g    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Started            pod/pairs-map-all-0-wqfld    Container started
+46s         Normal    Pulled             pod/pairs-map-all-2-qb2l4    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Created            pod/pairs-map-all-2-qb2l4    Container created
+46s         Normal    Started            pod/pairs-map-all-2-qb2l4    Container started
+46s         Normal    Pulled             pod/pairs-map-all-0-wqfld    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Started            pod/pairs-map-all-6-8z95g    Container started
+46s         Normal    Created            pod/pairs-map-all-0-wqfld    Container created
+46s         Normal    Started            pod/pairs-map-all-1-9p746    Container started
+46s         Normal    Created            pod/pairs-map-all-6-8z95g    Container created
+46s         Normal    Pulled             pod/pairs-map-all-1-9p746    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Pulled             pod/pairs-map-all-4-jwhzb    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Created            pod/pairs-map-all-4-jwhzb    Container created
+46s         Normal    Started            pod/pairs-map-all-4-jwhzb    Container started
+46s         Normal    Created            pod/pairs-map-all-1-9p746    Container created
+46s         Normal    Pulled             pod/pairs-map-all-5-4bnvx    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Created            pod/pairs-map-all-5-4bnvx    Container created
+46s         Normal    Started            pod/pairs-map-all-5-4bnvx    Container started
+27s         Warning   FailedScheduling   pod/pairs-map-all-8-gggc2    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+27s         Normal    Scheduled          pod/pairs-map-all-3-z2n8h    Successfully assigned hh/pairs-map-all-3-z2n8h to hh-worker
+26s         Normal    Created            pod/pairs-map-all-3-z2n8h    Container created
+26s         Warning   FailedScheduling   pod/pairs-map-all-9-67sdt    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+26s         Warning   FailedScheduling   pod/pairs-map-all-7-qwk4s    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+26s         Normal    Scheduled          pod/pairs-map-all-7-qwk4s    Successfully assigned hh/pairs-map-all-7-qwk4s to hh-worker
+26s         Warning   FailedScheduling   pod/pairs-map-all-10-wrj7f   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+26s         Normal    Scheduled          pod/pairs-map-all-10-wrj7f   Successfully assigned hh/pairs-map-all-10-wrj7f to hh-worker
+26s         Normal    Started            pod/pairs-map-all-3-z2n8h    Container started
+26s         Normal    Scheduled          pod/pairs-map-all-11-nr29g   Successfully assigned hh/pairs-map-all-11-nr29g to hh-worker2
+26s         Normal    Scheduled          pod/pairs-map-all-8-gggc2    Successfully assigned hh/pairs-map-all-8-gggc2 to hh-worker2
+26s         Normal    Pulled             pod/pairs-map-all-3-z2n8h    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+26s         Warning   FailedScheduling   pod/pairs-map-all-11-nr29g   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+26s         Normal    Scheduled          pod/pairs-map-all-9-67sdt    Successfully assigned hh/pairs-map-all-9-67sdt to hh-worker2
+25s         Normal    Created            pod/pairs-map-all-11-nr29g   Container created
+25s         Normal    Started            pod/pairs-map-all-8-gggc2    Container started
+25s         Normal    Pulled             pod/pairs-map-all-9-67sdt    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+25s         Normal    Created            pod/pairs-map-all-9-67sdt    Container created
+25s         Normal    Started            pod/pairs-map-all-9-67sdt    Container started
+25s         Normal    Created            pod/pairs-map-all-8-gggc2    Container created
+25s         Normal    Pulled             pod/pairs-map-all-8-gggc2    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+25s         Normal    Started            pod/pairs-map-all-7-qwk4s    Container started
+25s         Normal    Created            pod/pairs-map-all-7-qwk4s    Container created
+25s         Normal    Pulled             pod/pairs-map-all-7-qwk4s    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+25s         Normal    Started            pod/pairs-map-all-11-nr29g   Container started
+25s         Normal    Pulled             pod/pairs-map-all-11-nr29g   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+25s         Normal    Started            pod/pairs-map-all-10-wrj7f   Container started
+25s         Normal    Created            pod/pairs-map-all-10-wrj7f   Container created
+25s         Normal    Pulled             pod/pairs-map-all-10-wrj7f   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+4s          Normal    Completed          job/pairs-map-all            Job completed

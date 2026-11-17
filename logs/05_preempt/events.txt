@@ -1,0 +1,95 @@
+LAST SEEN   TYPE      REASON             OBJECT                   MESSAGE
+63s         Normal    Scheduled          pod/pairs-low-0-ld7j9    Successfully assigned hh/pairs-low-0-ld7j9 to hh-worker
+63s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-0-ld7j9
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-5-5q4df
+62s         Normal    Started            pod/pairs-low-1-lfmhr    Container started
+62s         Normal    Pulled             pod/pairs-low-5-5q4df    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    Started            pod/pairs-low-3-tt57h    Container started
+62s         Normal    Created            pod/pairs-low-3-tt57h    Container created
+62s         Normal    Pulled             pod/pairs-low-3-tt57h    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    Scheduled          pod/pairs-low-3-tt57h    Successfully assigned hh/pairs-low-3-tt57h to hh-worker
+62s         Normal    Created            pod/pairs-low-5-5q4df    Container created
+62s         Normal    Started            pod/pairs-low-5-5q4df    Container started
+62s         Normal    Scheduled          pod/pairs-low-1-lfmhr    Successfully assigned hh/pairs-low-1-lfmhr to hh-worker
+62s         Normal    Pulled             pod/pairs-low-1-lfmhr    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    Created            pod/pairs-low-1-lfmhr    Container created
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-3-tt57h
+62s         Normal    Scheduled          pod/pairs-low-6-9wtxz    Successfully assigned hh/pairs-low-6-9wtxz to hh-worker2
+62s         Normal    Pulled             pod/pairs-low-6-9wtxz    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    Created            pod/pairs-low-6-9wtxz    Container created
+62s         Normal    Started            pod/pairs-low-2-gsqws    Container started
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-7-9nxxb
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-10-27sxt
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-4-gt9qb
+62s         Normal    Created            pod/pairs-low-2-gsqws    Container created
+62s         Normal    Created            pod/pairs-low-0-ld7j9    Container created
+62s         Normal    Started            pod/pairs-low-0-ld7j9    Container started
+62s         Normal    Scheduled          pod/pairs-low-5-5q4df    Successfully assigned hh/pairs-low-5-5q4df to hh-worker2
+62s         Normal    Pulled             pod/pairs-low-2-gsqws    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-2-gsqws
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-1-lfmhr
+62s         Normal    Pulled             pod/pairs-low-0-ld7j9    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+62s         Normal    SuccessfulCreate   job/pairs-low            Created pod: pairs-low-6-9wtxz
+62s         Normal    Started            pod/pairs-low-6-9wtxz    Container started
+62s         Normal    Scheduled          pod/pairs-low-2-gsqws    Successfully assigned hh/pairs-low-2-gsqws to hh-worker2
+58s         Normal    Preempted          pod/pairs-low-3-tt57h    Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+58s         Normal    SuccessfulCreate   job/pairs-urgent         Created pod: pairs-urgent-hp7m7
+58s         Warning   FailedScheduling   pod/pairs-urgent-hp7m7   0/3 nodes are available: 1 Insufficient memory, 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: found a potential placement for pod on node hh-worker, preempting 3 victims
+58s         Warning   FailedScheduling   pod/pairs-urgent-hp7m7   0/3 nodes are available: 1 Insufficient memory, 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: not eligible due to a terminating pod on the nominated node.
+58s         Normal    Killing            pod/pairs-low-1-lfmhr    Stopping container map
+58s         Normal    Preempted          pod/pairs-low-1-lfmhr    Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+58s         Warning   FailedScheduling   pod/pairs-low-10-27sxt   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+58s         Normal    Preempted          pod/pairs-low-0-ld7j9    Preempted by pod e3ef5ad1-3c5e-4535-b61e-32a5ee4c1426 on node hh-worker
+58s         Warning   FailedScheduling   pod/pairs-low-4-gt9qb    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+58s         Warning   FailedScheduling   pod/pairs-low-7-9nxxb    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+58s         Normal    Scheduled          pod/pairs-urgent-hp7m7   Successfully assigned hh/pairs-urgent-hp7m7 to hh-worker
+58s         Normal    Killing            pod/pairs-low-0-ld7j9    Stopping container map
+58s         Normal    Killing            pod/pairs-low-3-tt57h    Stopping container map
+57s         Normal    Started            pod/pairs-urgent-hp7m7   Container started
+57s         Normal    Created            pod/pairs-urgent-hp7m7   Container created
+57s         Normal    Pulled             pod/pairs-urgent-hp7m7   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+45s         Normal    Scheduled          pod/pairs-low-10-27sxt   Successfully assigned hh/pairs-low-10-27sxt to hh-worker
+45s         Warning   FailedScheduling   pod/pairs-low-11-5pmdr   0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+45s         Normal    Started            pod/pairs-low-4-gt9qb    Container started
+45s         Normal    Pulled             pod/pairs-low-4-gt9qb    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+45s         Normal    Scheduled          pod/pairs-low-4-gt9qb    Successfully assigned hh/pairs-low-4-gt9qb to hh-worker
+45s         Normal    Completed          job/pairs-urgent         Job completed
+45s         Normal    Pulled             pod/pairs-low-10-27sxt   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+45s         Normal    Created            pod/pairs-low-10-27sxt   Container created
+45s         Normal    Created            pod/pairs-low-7-9nxxb    Container created
+45s         Normal    Pulled             pod/pairs-low-7-9nxxb    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+45s         Normal    Scheduled          pod/pairs-low-7-9nxxb    Successfully assigned hh/pairs-low-7-9nxxb to hh-worker
+45s         Normal    Created            pod/pairs-low-4-gt9qb    Container created
+44s         Normal    Started            pod/pairs-low-10-27sxt   Container started
+44s         Normal    Started            pod/pairs-low-7-9nxxb    Container started
+42s         Normal    Scheduled          pod/pairs-low-11-5pmdr   Successfully assigned hh/pairs-low-11-5pmdr to hh-worker2
+42s         Warning   FailedScheduling   pod/pairs-low-9-426jf    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+42s         Warning   FailedScheduling   pod/pairs-low-8-9x8nq    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+42s         Normal    Scheduled          pod/pairs-low-8-9x8nq    Successfully assigned hh/pairs-low-8-9x8nq to hh-worker2
+42s         Normal    Scheduled          pod/pairs-low-9-426jf    Successfully assigned hh/pairs-low-9-426jf to hh-worker2
+41s         Normal    Pulled             pod/pairs-low-9-426jf    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+41s         Normal    SuccessfulCreate   job/pairs-low            (combined from similar events): Created pod: pairs-low-3-stxct
+41s         Normal    Created            pod/pairs-low-8-9x8nq    Container created
+41s         Normal    Pulled             pod/pairs-low-8-9x8nq    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+41s         Normal    Created            pod/pairs-low-11-5pmdr   Container created
+41s         Normal    Created            pod/pairs-low-9-426jf    Container created
+41s         Normal    Started            pod/pairs-low-9-426jf    Container started
+41s         Normal    Pulled             pod/pairs-low-11-5pmdr   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+41s         Normal    Started            pod/pairs-low-11-5pmdr   Container started
+41s         Warning   FailedScheduling   pod/pairs-low-0-r75zz    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+41s         Normal    Started            pod/pairs-low-8-9x8nq    Container started
+24s         Warning   FailedScheduling   pod/pairs-low-1-rxnm9    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+24s         Normal    Scheduled          pod/pairs-low-1-rxnm9    Successfully assigned hh/pairs-low-1-rxnm9 to hh-worker
+24s         Warning   FailedScheduling   pod/pairs-low-3-stxct    0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 Insufficient cpu.
+24s         Normal    Created            pod/pairs-low-1-rxnm9    Container created
+24s         Normal    Pulled             pod/pairs-low-1-rxnm9    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+24s         Normal    Pulled             pod/pairs-low-3-stxct    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+24s         Normal    Scheduled          pod/pairs-low-0-r75zz    Successfully assigned hh/pairs-low-0-r75zz to hh-worker
+24s         Normal    Created            pod/pairs-low-3-stxct    Container created
+24s         Normal    Scheduled          pod/pairs-low-3-stxct    Successfully assigned hh/pairs-low-3-stxct to hh-worker
+24s         Normal    Started            pod/pairs-low-0-r75zz    Container started
+24s         Normal    Created            pod/pairs-low-0-r75zz    Container created
+24s         Normal    Pulled             pod/pairs-low-0-r75zz    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+23s         Normal    Started            pod/pairs-low-1-rxnm9    Container started
+23s         Normal    Started            pod/pairs-low-3-stxct    Container started
+3s          Normal    Completed          job/pairs-low            Job completed

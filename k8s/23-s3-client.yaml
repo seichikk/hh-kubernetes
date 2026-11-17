@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-client
+  namespace: hh-s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-client
+  template:
+    metadata:
+      labels:
+        app: s3-client
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: client
+          image: hh-k8s:1
+          command: ["sleep", "infinity"]
+          env:
+            - name: S3_ENDPOINT
+              value: http://rustfs:9000
+            - name: S3_BUCKET
+              value: hh-lake
+          envFrom:
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

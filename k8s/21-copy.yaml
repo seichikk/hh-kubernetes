@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-copy
+  namespace: hh-s3
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: copy
+          image: hh-k8s:1
+          args: ["copy", "--prefix", "raw/it_vacancies_2024.csv", "--prefix", "results/mapreduce/"]
+          env:
+            - name: SRC_ENDPOINT
+              value: http://host.docker.internal:19000
+            - name: S3_ENDPOINT
+              value: http://rustfs:9000
+            - name: S3_BUCKET
+              value: hh-lake
+          envFrom:
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

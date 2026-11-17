@@ -1,0 +1,410 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage[a4paper,left=2cm,right=1.7cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{fvextra}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,patterns}
+\usepackage[hidelinks]{hyperref}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{nosep,leftmargin=1.4em}
+\setlength{\parskip}{0.35em}
+\setlength{\emergencystretch}{3em}
+
+\definecolor{hhrun}{HTML}{2A78D6}
+\definecolor{hhurgent}{HTML}{EB6834}
+\definecolor{hhwait}{HTML}{CFCFCB}
+
+\newcommand{\studentName}{Бровкин Аким Алексеевич}
+\newcommand{\studentGroup}{J3310}
+\newcommand{\studentIsu}{465282}
+\newcommand{\repoUrl}{\texttt{github.com/seichikk/hh-kubernetes}}
+
+\newcommand{\nodata}{\mbox{\textcolor{red!70!black}{\footnotesize[нет данных]}}}
+\newcommand{\defvar}[1]{\expandafter\newcommand\csname #1\endcsname{\nodata}}
+\defvar{wholePeaks}\defvar{wholePeakMax}\defvar{wholeLimit}\defvar{wholeFinalPeak}\defvar{wholeFinalPct}
+\defvar{topMax}\defvar{topCount}\defvar{topPeak}
+\defvar{mapPeakMin}\defvar{mapPeakMax}\defvar{mapLimit}
+\defvar{parallelPods}\defvar{parallelWaited}\defvar{parallelMaxWait}\defvar{parallelEvicted}\defvar{parallelTotal}
+\defvar{pendingPods}\defvar{pendingWaited}\defvar{pendingMaxWait}\defvar{pendingEvicted}\defvar{pendingTotal}
+\defvar{preemptPods}\defvar{preemptWaited}\defvar{preemptMaxWait}\defvar{preemptEvicted}\defvar{preemptTotal}
+\defvar{quotaPods}\defvar{quotaWaited}\defvar{quotaMaxWait}\defvar{quotaEvicted}\defvar{quotaTotal}
+\defvar{parallelMaxQueue}\defvar{pendingMaxQueue}\defvar{preemptMaxQueue}\defvar{quotaMaxQueue}\defvar{quotaAllQueue}\defvar{quotaUrgentQueue}
+
+\InputIfFileExists{out/vars-oom.tex}{}{}
+\InputIfFileExists{out/vars-parallel-mem.tex}{}{}
+\InputIfFileExists{out/vars-parallel.tex}{}{}
+\InputIfFileExists{out/vars-pending.tex}{}{}
+\InputIfFileExists{out/vars-preempt.tex}{}{}
+\InputIfFileExists{out/vars-quota.tex}{}{}
+
+\makeatletter
+\newcommand{\tabfile}[2]{\IfFileExists{out/#1}{\@@input out/#1 }{#2}}
+\makeatother
+
+\newcommand{\gantt}[2]{\begin{figure}[H]\centering\IfFileExists{out/gantt-#1.tex}{\input{out/gantt-#1.tex}}{\nodata}\caption{#2}\label{fig:#1}\end{figure}}
+
+\newcommand{\cmdout}[1]{\IfFileExists{out/#1.txt}{\VerbatimInput[fontsize=\scriptsize,breaklines,breakanywhere,frame=single,framesep=2mm,rulecolor=\color{black!35}]{out/#1.txt}}{\begin{center}\fbox{\parbox{0.92\linewidth}{\centering\small\textcolor{red!70!black}{нет файла \texttt{out/\detokenize{#1}.txt}: его создаст скрипт из папки \texttt{scripts}}}}\end{center}}}
+
+\newcommand{\code}[1]{\IfFileExists{out/#1.txt}{\VerbatimInput[fontsize=\footnotesize,breaklines,frame=leftline,framesep=3mm,rulecolor=\color{blue!40},xleftmargin=2mm]{out/#1.txt}}{\begin{center}\fbox{\small\textcolor{red!70!black}{фрагмент кода \texttt{\detokenize{#1}} появится после \texttt{bash scripts/07\_report.sh}}}\end{center}}}
+
+\newcommand{\yaml}[1]{\VerbatimInput[fontsize=\footnotesize,frame=single,framesep=2mm,rulecolor=\color{black!25}]{../k8s/#1}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+{\large Университет ИТМО\par}
+\vspace{4.5cm}
+{\LARGE\bfseries Отчёт по домашнему заданию\par}
+\vspace{0.6cm}
+{\Large «Управление ресурсами в Kubernetes»\par}
+\vspace{0.6cm}
+{\normalsize Заявки и пределы, планирование, приоритеты и квоты.\\Расчёт из ДЗ-3, вариант 4: «Программист, разработчик на C\# и .NET»\par}
+\vfill
+\begin{flushright}
+\begin{tabular}{@{}l@{}}
+Выполнил: студент группы \studentGroup\\
+\studentName\\
+ИСУ \studentIsu\\[1.2em]
+\end{tabular}
+\end{flushright}
+\vspace{2cm}
+{Санкт-Петербург, 2026\par}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Задача и стенд}
+
+В ДЗ-3 я написал свой MapReduce, который считает частоты навыков, пар и троек навыков в вакансиях «Программист, разработчик на C\# и .NET». Датасет \texttt{it\_vacancies\_2024.csv} (808~МиБ) он читает по S3 из хранилища RustFS, которое я поднял в ДЗ-2. Теперь этот расчёт переезжает в Kubernetes:
+\begin{enumerate}
+  \item образ с программой запускается как задание (Job) с заявками и пределами ресурсов. Сначала предел памяти маленький, и под падает с \texttt{OOMKilled}. Потом я измеряю пик и подбираю предел по нему;
+  \item RustFS переезжает внутрь кластера, а расчёт делится на 12 частей файла, которые считают параллельные поды;
+  \item на этом же расчёте видно, как поды ждут процессор, как задача с высоким приоритетом вытесняет задачу с низким и как работает квота пространства имён.
+\end{enumerate}
+Итоговые топ-10 пар навыков должны совпасть с ДЗ-3, и они совпали. Совпали и сами файлы \texttt{k1.csv}--\texttt{k3.csv} побайтно.
+
+Dockerfile, манифесты, скрипты, журналы всех подов и выводы команд лежат в репозитории
+\begin{center}\href{https://github.com/seichikk/hh-kubernetes}{\repoUrl}\end{center}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Компьютер & MacBook Pro 16 (MacBookPro16,1), Intel Core i7-9750H, 6 ядер (12 потоков), 32 ГБ \\
+Система & macOS 26.6.2, Docker Desktop (Engine 29.8.0), виртуальной машине Docker отдано 8 ГиБ \\
+Кластер & kind 0.33.0: control-plane и два рабочих узла, Kubernetes v1.37.0, containerd 2.3.4 \\
+Клиент & kubectl v1.36.1, metrics-server v0.9.1 для \texttt{kubectl top} \\
+Образ & \texttt{hh-k8s:1}: Python 3.12, pyarrow 26.0.0, boto3 1.43.116, код из ДЗ-3 \\
+Хранилище & RustFS 1.0.1: сначала контейнер из ДЗ-3 на хосте, потом StatefulSet в кластере \\
+\bottomrule
+\end{tabular}
+\caption{Стенд}
+\end{table}
+
+\subsection{Почему kind}
+
+Kubernetes на одном компьютере можно поднять через minikube, k3d, kind или встроенный в Docker Desktop кластер. Мне нужно было несколько узлов, иначе планировщику не из чего выбирать и вытеснение выглядит бедно. kind запускает каждый узел как Docker-контейнер, внутри которого работают kubelet и containerd, так что три узла стоят столько же, сколько три контейнера. Docker Desktop у меня уже стоит, и хранилище из ДЗ-3 тоже работает в нём.
+
+Каждый узел kind видит всю виртуальную машину Docker: 12 процессоров и 8~ГиБ. С такими узлами 12 подов по одному процессору поместились бы сразу, и ждать было бы некому. Поэтому в \texttt{k8s/kind.yaml} я отдал под систему (\texttt{systemReserved}) 8 процессоров и 5~ГиБ на каждом узле. Планировщику остаётся 4 процессора и примерно 2,75~ГиБ на узел. Процессоры от этого физически не делятся, это только учёт: планировщик раскладывает поды по заявкам и не даёт сумме заявок на узле превысить \texttt{allocatable}.
+
+\yaml{kind.yaml}
+
+\subsection{Что пошло не так в первый раз}
+
+Первый прогон я делал с виртуальной машиной Docker на 12~ГиБ. Рядом работали контейнеры другого моего проекта (fraud-detector и mlflow, около 4~ГиБ памяти). Нагрузку ноутбук не выдержал: macOS ушла в своп, \texttt{kubectl} получал \texttt{TLS handshake timeout} от API-сервера, а RustFS отвечал на \texttt{GetObject} ошибкой \texttt{InternalError}. Три пода плановой задачи упали именно с ней. Это тоже урок про ресурсы: сумма всего, что работает на компьютере, должна помещаться в его память. Я удалил кластер, уменьшил машину Docker до 8~ГиБ, остановил посторонние контейнеры и прогнал всё заново. Все выводы в отчёте~--- из последнего прогона.
+
+\cmdout{00_cluster}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small, >={Stealth[length=2mm]},
+  pod/.style={draw, rounded corners=2pt, align=center, inner sep=3pt, fill=blue!8, minimum height=7mm},
+  sys/.style={draw, rounded corners=2pt, align=center, inner sep=3pt, fill=black!6, minimum height=7mm},
+  s3/.style={draw, rounded corners=2pt, align=center, inner sep=3pt, fill=green!10, minimum height=7mm},
+  node/.style={draw=black!50, rounded corners=4pt, inner sep=6pt}]
+\node[sys] (api) at (0,0) {kube-apiserver, etcd,\\kube-scheduler,\\controller-manager};
+\node[node, fit=(api), label={[font=\scriptsize]above:hh-control-plane}] (cp) {};
+\node[pod] (m1) at (5.2,1.0) {map-0 \dots};
+\node[s3] (rfs) at (5.2,-0.2) {rustfs-0 (hh-s3)\\4 тома PVC, EC 2+2};
+\node[sys] (ms) at (5.2,-1.35) {metrics-server};
+\node[node, fit=(m1)(rfs)(ms), label={[font=\scriptsize]above:hh-worker, 4 CPU}] (w1) {};
+\node[pod] (m2) at (10.2,1.0) {map-1 \dots};
+\node[pod] (red) at (10.2,-0.2) {reduce, urgent};
+\node[sys] (cl) at (10.2,-1.35) {s3-client};
+\node[node, fit=(m2)(red)(cl), label={[font=\scriptsize]above:hh-worker2, 4 CPU}] (w2) {};
+\draw[<->] (cp.east) -- (w1.west);
+\draw[->, dashed] (m2.west) -- (rfs.east);
+\draw[->, dashed] (red.west) -- (rfs.east);
+\draw[->, dashed] (m1.south) -- (rfs.north);
+\node[font=\scriptsize, align=center] at (7.7,0.95) {S3, Range GET};
+\end{tikzpicture}
+\caption{Кластер: задачи в пространстве имён \texttt{hh}, хранилище в \texttt{hh-s3}. На каком узле окажется под, решает планировщик; на рисунке один из вариантов}
+\end{figure}
+
+\section{Образ и задание с заявками и пределами}
+
+\subsection{Образ}
+
+В образ входят \texttt{lab/common.py} и \texttt{lab/mapreduce.py} из ДЗ-3 без единой правки (контрольные суммы файлов совпадают с репозиторием ДЗ-3) и новый \texttt{lab/kube.py}. В нём несколько подкоманд: \texttt{whole} считает весь файл одним подом через \texttt{mapreduce.run} из ДЗ-3, \texttt{split}, \texttt{map} и \texttt{reduce} нужны для расчёта по частям, \texttt{copy} переносит объекты между хранилищами. Образ собирается локально, поэтому в кластер он попадает командой \texttt{kind load docker-image}, а не из реестра.
+
+\VerbatimInput[fontsize=\footnotesize,frame=single,framesep=2mm,rulecolor=\color{black!25}]{../docker/Dockerfile}
+
+В конце каждой подкоманды программа печатает две строки про ресурсы контейнера. Они читаются прямо из cgroup v2, которую Kubernetes создаёт для контейнера: \texttt{memory.peak} и \texttt{memory.max}~--- пик и предел памяти, \texttt{cpu.stat} и \texttt{cpu.max}~--- процессорное время и сколько раз ядро притормаживало контейнер из-за предела процессора. Пик в \texttt{memory.peak} считает ядро, он не зависит от того, как часто его опрашивать. Этим он и лучше \texttt{kubectl top}, который, как будет видно ниже, пик легко пропускает.
+
+\code{code_resources}
+
+\subsection{Первый запуск: OOMKilled}
+
+Пока хранилище ещё снаружи кластера: под ходит в контейнер \texttt{rustfs} из ДЗ-3 по адресу \texttt{host.docker.internal:19000}. Адрес, бакет и ключ объекта лежат в ConfigMap \texttt{s3}, ключи доступа~--- в Secret \texttt{s3-keys}. Предел памяти 256~МиБ я взял наугад. Заявка равна пределу, поэтому под получает класс QoS \texttt{Guaranteed}.
+
+\yaml{10-whole-oom.yaml}
+
+Под прожил около 3~с. Мастер успел прочитать первые чанки по 32~МиБ и раздать их мапперам, каждый из которых~--- отдельный процесс Python с pyarrow. Суммарная память контейнера упёрлась в \texttt{memory.max} = 256~МиБ, ядро запустило OOM killer внутри cgroup и убило процесс. В \texttt{dmesg} узла это видно строкой \texttt{Memory cgroup out of memory: Killed process}. Kubernetes ставит \texttt{memory.oom.group}, поэтому вместе с одним процессом погибают все процессы контейнера. Код выхода 137 = 128 + 9, то есть SIGKILL. Kubelet видит причину завершения и пишет в статус контейнера \texttt{Reason: OOMKilled}. У задания \texttt{backoffLimit: 0}, поэтому повторов нет, и Job сразу переходит в \texttt{Failed} с причиной \texttt{BackoffLimitExceeded}. В журнале пода только две первые строки: результат никуда не записан.
+
+\subsection{Замер пика и подбор предела}
+
+Тот же манифест я запускал с пределом 2~ГиБ, где памяти заведомо хватает, три раза подряд. Пики по \texttt{memory.peak}: \wholePeaks~МиБ. Первый запуск на холодном узле оказался тяжелее остальных: в пик попадают и страницы файлов, которые процесс прочитал с диска, а это прежде всего библиотеки Python и pyarrow. Предел я беру по самому большому пику с запасом в четверть и округляю вверх до 64~МиБ:
+\[
+  \text{предел} = \left\lceil \frac{1{,}25 \cdot \wholePeakMax}{64} \right\rceil \cdot 64 = \wholeLimit~\text{МиБ}.
+\]
+Запас нужен потому, что пик зависит от того, как чанки распределятся между мапперами и когда сработает сборщик мусора, и три запуска дают только оценку снизу. Делать предел намного больше пика тоже нельзя: заявка равна пределу, и лишняя память на узле просто простаивает.
+
+Во время первого замера скрипт каждые 3~с вызывал \texttt{kubectl top pod}. Он успел увидеть под \topCount~раз и показал не больше \topMax~МиБ, хотя пик того же запуска \topPeak~МиБ. metrics-server получает данные от kubelet раз в 15~с, и короткий всплеск между опросами в его цифры не попадает. Подбирать предел по \texttt{kubectl top} опасно, нужен пик, который считает само ядро.
+
+Чтобы проверить границу, я прогнал тот же расчёт с пределами от 256 до \wholeLimit~МиБ:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}rlrrr@{}}
+\toprule
+Предел, МиБ & Итог & Код выхода & Работал, с & Пик, МиБ \\
+\midrule
+\tabfile{sweep.tex}{\nodata & & & & \\}
+\bottomrule
+\end{tabular}
+\caption{Один и тот же расчёт с разными пределами памяти (\texttt{logs/01\_oom/sweep.csv})}
+\end{table}
+
+Всё до 640~МиБ падает за 3--5~с. С пределом 768~МиБ расчёт прошёл, но его пик ровно 768~МиБ: память упёрлась в предел, ядро вытеснило страничный кэш, и самому процессу места хватило. Это граница, а не рабочий предел: в первом замере пик был 895~МиБ, и сколько из них ядро смогло бы отдать без вреда для расчёта, заранее не скажешь. С 896~МиБ пик уже ниже предела. С подобранным пределом \wholeLimit~МиБ расчёт прошёл, пик \wholeFinalPeak~МиБ, это \wholeFinalPct\,\% предела. Файлы \texttt{k1.csv}--\texttt{k3.csv} и \texttt{vacancies.jsonl} совпали с ДЗ-3 по SHA-256, топ-10 пар тоже. С этим же пределом расчёт целиком работает дальше как срочная задача, и в опытах с вытеснением и квотой его пик был 837 и 856~МиБ.
+
+\cmdout{01_oom}
+
+\section{Хранилище из ДЗ-2 внутри кластера}
+
+В ДЗ-2 RustFS работал в Docker на четырёх папках-дисках и сам выбрал схему erasure coding 2+2. В кластере это StatefulSet из одной реплики с теми же четырьмя томами. Тома заказываются через \texttt{volumeClaimTemplates}, и в kind их выдаёт local-path-provisioner: каждый PVC~--- папка на диске того узла, куда попал под. Получилась та же схема, что в ДЗ-2: четыре «диска», которые на деле лежат на одном физическом диске, поэтому снова нужен \texttt{RUSTFS\_UNSAFE\_BYPASS\_DISK\_CHECK}. StatefulSet здесь лучше Deployment: у пода постоянное имя \texttt{rustfs-0}, и после перезапуска он получает те же PVC. Внутри кластера хранилище доступно по имени сервиса \texttt{rustfs.hh-s3:9000}.
+
+\yaml{20-rustfs.yaml}
+
+Перенос сделал Job \texttt{s3-copy}: он читает объект из старого хранилища и пишет его в новое, по ходу считая SHA-256, а потом читает записанное обратно и сверяет. Перенесены датасет и результаты ДЗ-3 \texttt{results/mapreduce/}, с которыми дальше сравнивается каждый расчёт. После переноса на каждом томе 408~МиБ, то есть половина датасета. Это тот же коэффициент 2, что получился в ДЗ-2: каждый том хранит один фрагмент из четырёх, а данных в объекте на два фрагмента. Объект загружен составной загрузкой по 64~МиБ, поэтому на томе лежат 13 файлов \texttt{part.N} по 32~МиБ, а не один, как в ДЗ-2, где я поднимал порог составной загрузки. Затем ConfigMap \texttt{s3} в пространстве имён \texttt{hh} переключается на \texttt{http://rustfs.hh-s3:9000}, а контейнер \texttt{rustfs} на хосте останавливается. С этого места расчёты не видят ничего за пределами кластера.
+
+\cmdout{02_storage}
+
+\subsection{Предел для самого хранилища}
+
+Сначала я дал RustFS заявку 512~МиБ и предел 1~ГиБ, тоже наугад. Перенос бакета и расчёт по частям с ним прошли, а в опытах с вытеснением и квотой, где хранилище одновременно читают до семи подов, RustFS получил \texttt{OOMKilled} сам. Сначала у него перестала отвечать проверка готовности (\texttt{Readiness probe failed: context deadline exceeded}), и части считались втрое дольше обычного. Потом ядро убило процесс. Два пода \texttt{pairs-map-all} в этот момент читали свои 32~МиБ и получили обрыв: \texttt{IncompleteRead(12582912 bytes read, 20971520 more expected)}. Job пересоздал их (\texttt{backoffLimit: 3}), так что итог сошёлся, но опыт был испорчен. Вывод \texttt{describe} и события этого случая лежат в \texttt{logs/rustfs-oom}.
+
+Пик хранилища я измерял так же, как пик расчёта: поднял предел до 3~ГиБ, повторил самый тяжёлый опыт (вытеснение) и раз в 0,5~с читал из cgroup пода \texttt{memory.current} и строку \texttt{anon} из \texttt{memory.stat}. Вместе с кэшем память доходила до 2027~МиБ, но почти всё это страничный кэш файлов фрагментов: в конце опыта \texttt{file} занимал 1,45~ГБ. Кэш ядро отдаёт само, прежде чем убить процесс, поэтому подбирать предел по этой цифре незачем. Память самого процесса (\texttt{anon}) не поднималась выше 665~МиБ. Опрос раз в полсекунды короткие всплески пропускает, а предел 1~ГиБ уже оказался мал, поэтому запас я взял втрое больше обычного: заявка 1~ГиБ, предел 2~ГиБ. Потом я удалил StatefulSet вместе с томами и прогнал все шаги с переноса бакета заново, на чистых томах. В каждом опыте скрипт печатает строку \texttt{rustfs-0: перезапусков за опыт ...}. Во всех опытах перезапусков ноль, а \texttt{anon} доходил до 788~МиБ, больше, чем в разовом замере. Разовый замер и здесь дал только оценку снизу, и запас понадобился. Вместе с кэшем память хранилища каждый раз упирается в предел 2~ГиБ, но это кэш, который ядро вытесняет.
+
+\section{Расчёт параллельными задачами по частям файла}
+
+\subsection{Как делится файл}
+
+В ДЗ-3 мастер читал объект чанками по 32~МиБ и сдвигал границу чанка к концу CSV-записи. Здесь тот же приём работает на уровень выше. Job \texttt{pairs-split} делит файл на 12 частей примерно по 67~МиБ, и каждая граница сдвигается вперёд до конца записи. Конец строки ещё не конец записи: в описаниях вакансий есть переводы строк внутри кавычек. Поэтому \texttt{split} читает весь файл по 16~МиБ и считает кавычки от самого начала. Перевод строки заканчивает запись, только если до него было чётное число кавычек. Найденные границы, ETag объекта и заголовок CSV записываются в S3 как \texttt{k8s/parts/splits.json}.
+
+\code{code_boundary}
+
+Дальше работает Indexed Job \texttt{pairs-map} на 12 завершений (\texttt{completions: 12}), из которых одновременно идут 6 (\texttt{parallelism: 6}). Каждый под получает свой номер в переменной \texttt{JOB\_COMPLETION\_INDEX}, берёт из плана свои байты и читает их Range GET с заголовком \texttt{If-Match}. Если объект в S3 подменят посреди расчёта, чтение упадёт, а не смешает две версии файла. Внутри части работает \texttt{map\_task} из ДЗ-3 на тех же чанках по 32~МиБ с той же нормализацией навыков и тем же combiner'ом. Частичные счётчики для четырёх редьюсеров сжимаются и пишутся в \texttt{k8s/parts/map/part-NNNN.json.gz}. Под номер 5 всегда считает пятую часть, поэтому повтор упавшего пода ничего не ломает: он просто перезапишет файл своей части тем же содержимым.
+
+\code{code_map_part}
+
+Job \texttt{pairs-reduce} читает 12 файлов, проверяет, что каждый посчитан по этому же плану, и складывает счётчики функцией \texttt{reduce\_task} из ДЗ-3.
+
+\subsection{Предел памяти для части}
+
+Части в 12 раз меньше файла, и предел для них свой. Сначала все 12 частей прошли с пределом 1~ГиБ, пики оказались от \mapPeakMin{} до \mapPeakMax~МиБ. По тому же правилу предел части \mapLimit~МиБ, и с ним работают все задания с частями ниже. В отличие от пода \texttt{whole} здесь один процесс, а не мастер и три маппера, отсюда и разница в пике.
+
+\yaml{31-map.yaml}
+
+\gantt{parallel}{Поды \texttt{pairs-map} по времени: по 6 одновременно, новая часть стартует, когда освобождается место}
+
+Всё задание заняло \parallelTotal~с. Пока работают первые 6 подов, следующие не создаются вовсе: Job сам держит не больше \texttt{parallelism} активных подов. Поэтому на графике у частей 6--11 нет ожидания, они появляются, когда заканчиваются предыдущие.
+
+\subsection{Результат}
+
+Reduce дал те же числа, что ДЗ-3: 4356 вакансий варианта, 1164 навыка, 17\,198 пар и 114\,332 тройки, суммы частот совпали с $\sum C(n, k)$ по вакансиям. Файлы \texttt{k1.csv}, \texttt{k2.csv}, \texttt{k3.csv} совпали с файлами ДЗ-3 побайтно. Скрипт проверяет это дважды: внутри пода по SHA-256 с файлами в бакете и на компьютере командой \texttt{cmp} с файлами из репозитория ДЗ-3.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}rllr@{}}
+\toprule
+№ & Навык 1 & Навык 2 & Вакансий \\
+\midrule
+\tabfile{top10.tex}{\nodata & & & \\}
+\bottomrule
+\end{tabular}
+\caption{Топ-10 пар навыков из \texttt{results/k8s/k2.csv}, расчёт в Kubernetes по частям. Совпадает с ДЗ-3}
+\end{table}
+
+\cmdout{03_parallel}
+
+\section{Ожидание при нехватке процессора}
+
+Тот же расчёт, но теперь \texttt{parallelism: 12}: Job создаёт все 12 подов сразу. Каждый просит 1 процессор. На рабочих узлах планировщику доступно по 4 процессора, и часть из них уже занята заявками системных подов: на одном узле RustFS (500m) и kindnet (100m), на другом metrics-server и kindnet. Целиком в 4 процессора помещаются только три пода по одному. Чтобы ожидание было видно дольше, перед каждым чанком под спит 5~с (параметр \texttt{-{}-delay}, на результат он не влияет).
+
+Планировщик разместил 6 подов, остальные остались в \texttt{Pending}. В их событиях~--- \texttt{FailedScheduling} с объяснением «0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu». Control-plane не берёт обычные поды из-за taint, а на рабочих не хватает процессора. Строка про preemption говорит, что вытеснять некого: все поды задания одного приоритета. При этом \texttt{kubectl top} показывает, что каждый работающий под тратит 0,19--0,23 процессора, а рабочие узлы загружены на 21--24\,\%: поды в основном ждут S3 и спят. Планировщик смотрит не на загрузку, а на сумму заявок, и место для пода гарантировано, только пока сумма заявок не больше \texttt{allocatable}.
+
+Ждущие поды попадают на узел, как только заканчивается кто-то из первой шестёрки. Подов, которые ждали узла дольше 2~с, \pendingWaited{} из \pendingPods, самое долгое ожидание \pendingMaxWait~с, всё задание \pendingTotal~с.
+
+\gantt{pending}{Все 12 частей сразу: серым~--- время в Pending, синим~--- работа на узле}
+
+\cmdout{04_pending}
+
+\section{Вытеснение задачи с низким приоритетом}
+
+Я завёл два класса приоритета: \texttt{hh-low} (1000) для плановых пересчётов и \texttt{hh-high} (100\,000) для срочных расчётов. Плановая задача \texttt{pairs-low}~--- это те же 12 частей с приоритетом \texttt{hh-low}. Срочная \texttt{pairs-urgent}~--- расчёт целиком одним подом, ему нужно 3 процессора и \wholeLimit~МиБ на одном узле.
+
+\yaml{50-priority.yaml}
+
+Плановая задача запускается первой и занимает оба рабочих узла: по три пода на каждом, ещё шесть в \texttt{Pending}. Срочной задаче свободных трёх процессоров не найти: в событии пода сказано «2 Insufficient cpu», а на узле с RustFS не хватает ещё и памяти. Тогда планировщик ищет узел, где можно освободить место, убрав поды с меньшим приоритетом, и выбирает тот, где вытеснение обходится дешевле всего. Здесь это hh-worker и три пода \texttt{pairs-low} на нём. Срочный под получает этот узел в поле \texttt{nominatedNodeName}, а жертвы получают условие \texttt{DisruptionTarget} с причиной \texttt{PreemptionByScheduler} и SIGTERM. Программа ловит SIGTERM, печатает «получен sigterm, расчёт остановлен» и выходит с кодом 143. Пока жертвы завершаются, планировщик срочный под не трогает («not eligible due to a terminating pod on the nominated node»). Через 0,3--0,4~с после вытеснения срочный под уже на узле.
+
+Вытесненный под~--- не ошибка задачи. В \texttt{pairs-low} указана \texttt{podFailurePolicy}: поды с условием \texttt{DisruptionTarget} не считаются в \texttt{backoffLimit}. Без неё каждое вытеснение тратило бы одну попытку из трёх. В статусе задачи в итоге \texttt{succeeded: 12}, а счётчик \texttt{failed} пуст. Замены вытесненных подов Job создал не сразу, а через 16~с, и ровно через 0,4~с после того, как на hh-worker2 успешно закончились первые части. Похоже, что задержку перед повторным созданием подов после неудач Job controller держит и для неудач, которые \texttt{podFailurePolicy} велела не считать, а первый успех её сбрасывает. На результат это не влияет: части вытесненных подов пересчитываются с начала, и reduce по итогам плановой задачи снова совпадает с ДЗ-3. У срочной задачи свой результат в \texttt{results/k8s-urgent/}, и он тоже совпал.
+
+\yaml{51-map-low.yaml}
+
+\gantt{preempt}{Плановая задача и срочная: крестик~--- под вытеснен, оранжевым~--- срочная задача}
+
+Вытеснено подов: \preemptEvicted, всего подов за опыт \preemptPods, весь опыт занял \preemptTotal~с.
+
+\cmdout{05_preempt}
+
+\section{Квота пространства имён}
+
+ResourceQuota ограничивает сумму заявок и пределов всех подов в пространстве имён \texttt{hh}: 4 процессора и 2~ГиБ памяти на заявки и на пределы, не больше 8 подов.
+
+\yaml{60-quota.yaml}
+
+Квота проверяется не планировщиком, а при создании объекта, на этапе admission. Отсюда три следствия, и все три видны в выводе.
+\begin{enumerate}
+  \item Под без заявок и пределов создать нельзя: раз квота считает \texttt{limits.cpu}, каждый под обязан их указать. \texttt{kubectl run} получает \texttt{Forbidden} сразу.
+  \item Из 12 подов задания с \texttt{parallelism: 12} создаются только 4: на них уходят все 4 процессора квоты. Остальные не висят в \texttt{Pending}, как в предыдущем опыте, их просто нет. Job controller получает отказ \texttt{exceeded quota} (событие \texttt{FailedCreate}) и пробует снова, когда освобождается место. Свободные процессоры на узлах при этом есть, но квота о них не знает.
+  \item Приоритет квоту не обходит. Срочная задача с \texttt{hh-high} получает тот же \texttt{FailedCreate}: квота не вытесняет, она отказывает. Пока плановая задача держит квоту, срочной трёх процессоров не достаётся: как только один под \texttt{pairs-map-all} завершается, контроллер этой задачи тут же занимает освободившийся процессор новой частью. Срочная задача стартует, только когда плановая заканчивается целиком.
+\end{enumerate}
+
+\gantt{quota}{12 частей под квотой 4 CPU и срочная задача: штриховкой~--- время, когда задание уже есть, а пода нет}
+
+Ни один под в этом опыте не ждал узла: всё ожидание случилось раньше, на этапе создания. За опыт Job controller получил \texttt{exceeded quota} 15 раз для плановой задачи и 6 раз для срочной. Срочное задание создано на 8-й секунде, а его под появился только через \quotaUrgentQueue~с, примерно через 11~с после того, как закончилась последняя часть плановой задачи. После каждого отказа контроллер ждёт перед следующей попыткой всё дольше, и эти 11~с~--- остаток такой паузы. Всего подов \quotaPods, весь опыт \quotaTotal~с. В конце скрипт удаляет квоту.
+
+\cmdout{06_quota}
+
+\section{Ответы на вопросы: YARN, Mesos и Kubernetes}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+ & YARN & Mesos & Kubernetes \\
+\midrule
+Кто распределяет ресурсы кластера & ResourceManager, в нём Capacity или Fair Scheduler & Mesos master, распределитель DRF раздаёт предложения (offers) & kube-scheduler, состояние в etcd через kube-apiserver \\
+Агент на узле & NodeManager & Mesos agent & kubelet и container runtime (containerd) \\
+Кто ведёт задание & ApplicationMaster, свой у каждого приложения & планировщик фреймворка (Marathon, Spark, Chronos) & контроллер: Job controller, а для сложного~--- оператор \\
+Единица запуска & контейнер YARN & задача (task) в исполнителе & под \\
+Как задаются ресурсы & память и vcores контейнера, выдаётся ровно столько, сколько попросили & ресурсы задачи из принятого предложения & заявка (requests) для планирования и предел (limits) для исполнения отдельно \\
+Выход за предел памяти & NodeManager раз в несколько секунд сверяет память дерева процессов и убивает контейнер, статус $-104$ (\texttt{KILLED\_EXCEEDED\_PMEM}) & изолятор cgroups/mem, задача получает \texttt{TASK\_FAILED} с причиной \texttt{REASON\_CONTAINER\_LIMITATION\_MEMORY} & ядро по \texttt{memory.max}, контейнер \texttt{OOMKilled}, код 137 \\
+Нехватка ресурсов & запрос AM ждёт в очереди, приложение в \texttt{ACCEPTED} & фреймворк не получает подходящих предложений & под в \texttt{Pending}, событие \texttt{FailedScheduling} \\
+Приоритет и вытеснение & вытеснение между очередями до их гарантированной доли, приоритет приложений внутри очереди & общего вытеснения нет; есть резервирования и revocable-ресурсы & PriorityClass, планировщик вытесняет поды с меньшим приоритетом \\
+Доли и ограничения & иерархия очередей: \texttt{capacity} и \texttt{maximum-capacity} & роли: веса для DRF, квота как гарантия и как предел & ResourceQuota и LimitRange в пространстве имён \\
+Локальность данных & AM просит узел или стойку с блоком HDFS, есть delay scheduling & фреймворк сам выбирает предложения с нужных узлов & планировщик о данных не знает, есть только affinity по меткам \\
+\bottomrule
+\end{tabularx}
+\caption{Что чему соответствует}
+\end{table}
+
+\subsection{Что в Kubernetes соответствует ResourceManager, NodeManager, ApplicationMaster и контейнеру YARN?}
+
+ResourceManager YARN совмещает две роли: хранит состояние кластера и решает, где запускать контейнеры. В Kubernetes это разделено. Состояние лежит в etcd, доступ к нему только через kube-apiserver, а решения о размещении принимает kube-scheduler. NodeManager соответствует kubelet: он запускает то, что назначено узлу, следит за ресурсами и сообщает о состоянии. Контейнер YARN~--- это под.
+
+У ApplicationMaster точного аналога нет. В YARN каждое приложение приносит свой AM, который просит контейнеры и следит за задачами. В Kubernetes это делает контроллер, общий для всех объектов одного типа. В моей работе Job controller держит нужное число подов по \texttt{parallelism}, пересоздаёт упавшие и раздаёт номера частей. Логика самого MapReduce (разбить файл, собрать результаты) живёт у меня в коде и в порядке запуска трёх Job. Ближе всего к AM~--- оператор: свой контроллер со своим типом ресурса, например Spark Operator.
+
+В Mesos роли AM играет планировщик фреймворка, ResourceManager соответствует Mesos master, NodeManager~--- Mesos agent, а контейнеру YARN~--- задача, запущенная исполнителем фреймворка.
+
+\subsection{Чем отличается само планирование?}
+
+YARN и Kubernetes решают за приложение: оно описывает, что ему нужно, а планировщик выбирает узел. Mesos устроен в два уровня. Master не выбирает узлы, он раздаёт фреймворкам предложения вида «на агенте A свободно 4 CPU и 8 ГБ». Кому предложить, решает алгоритм Dominant Resource Fairness: следующим получает фреймворк с наименьшей долей своего самого дефицитного ресурса. Что с предложением делать, решает фреймворк: принять целиком или частично, отказаться и ждать лучшего. Это даёт фреймворкам свободу (Spark сам ищет узлы с данными), но ни у кого нет полной картины кластера. Поэтому сложные требования вроде «три процессора на одном узле, и ради этого убрать чужие задачи» в Mesos выразить трудно, а в Kubernetes это одна строка \texttt{priorityClassName}.
+
+Kubernetes отличается и тем, что разделяет заявку и предел. Заявка~--- то, что планировщик резервирует на узле, предел~--- то, что cgroup не даст превысить. В YARN контейнер получает ровно столько памяти, сколько попросил, и это же его предел. В моих манифестах заявка равна пределу, то есть я повторил модель YARN, и поды получили класс QoS \texttt{Guaranteed}. Если сделать заявку меньше предела, на узел поместится больше подов, но при нехватке памяти на узле kubelet начнёт выселять поды в первую очередь из тех, что превысили свою заявку.
+
+\subsection{Что происходит с задачей, вышедшей за предел памяти?}
+
+В Kubernetes предел памяти~--- это \texttt{memory.max} в cgroup контейнера. Ядро не даёт его превысить: при нехватке оно сначала вытесняет страничный кэш, а если не помогло, убивает процесс. В опыте с 256~МиБ под умер через 4~с с кодом 137 и причиной \texttt{OOMKilled}.
+
+NodeManager в YARN по умолчанию работает иначе. Он периодически (раз в 3~с) обходит дерево процессов контейнера, суммирует их память и, если она больше выданной, убивает контейнер. Статус завершения $-104$, \texttt{KILLED\_EXCEEDED\_PMEM}, в диагностике~--- сообщение, что контейнер вышел за предел физической памяти. Пик между двумя проверками YARN может не заметить, ровно как \texttt{kubectl top} у меня. Есть и строгий режим через cgroups, тогда YARN убивает так же, как Kubernetes. В Mesos предел памяти задаёт изолятор \texttt{cgroups/mem}, и задача завершается со статусом \texttt{TASK\_FAILED} и причиной \texttt{REASON\_CONTAINER\_LIMITATION\_MEMORY}.
+
+Во всех трёх системах повтор упавшей задачи~--- забота того, кто её запустил: AM в YARN, фреймворка в Mesos, Job controller в Kubernetes (\texttt{backoffLimit}). Ни одна система не поднимает предел сама. Его надо подобрать по измеренному пику, как в разделе~2.
+
+\subsection{Как устроены ожидание, приоритеты и вытеснение?}
+
+В YARN запрос контейнера, которому не нашлось места, ждёт в очереди ResourceManager, и AM получает контейнеры, когда они освобождаются. В Kubernetes под создаётся сразу и ждёт в \texttt{Pending}. Планировщик периодически пробует его разместить, а в событиях пишет, почему не вышло. В Mesos фреймворк просто не получает подходящих предложений.
+
+Вытеснение в YARN завязано на очереди. Capacity Scheduler гарантирует каждой очереди её \texttt{capacity}, а свободные ресурсы даёт занять соседям вплоть до \texttt{maximum-capacity}. Когда владелец возвращается, монитор вытеснения забирает контейнеры у тех, кто занял больше своей доли (статус $-102$, \texttt{PREEMPTED}). Внутри очереди у приложений есть приоритет, но вытеснять друг друга по нему они по умолчанию не могут. Fair Scheduler вытесняет у тех, кто получил больше своей справедливой доли. В Kubernetes вытеснение идёт по приоритету пода, и очередей в нём нет вовсе: под \texttt{hh-high} убрал поды \texttt{hh-low}, хотя у обоих одно пространство имён и одна квота. В Mesos общего механизма вытеснения нет. Есть ресурсы, помеченные как revocable: их можно отдать задачам, которые готовы, что ресурсы отберут.
+
+\subsection{Чем квота пространства имён отличается от очереди YARN и роли Mesos?}
+
+Очередь YARN~--- это одновременно гарантия и место ожидания. У очереди есть доля, которую ей вернут вытеснением, если её заняли соседи, и запросы сверх доступного ждут в ней по порядку. ResourceQuota не гарантирует ничего: это только потолок, и проверяется он при создании объекта. Сверх потолка под не встаёт в очередь, его не создают вовсе. Это видно в последнем опыте: поды \texttt{pairs-map-all} не висели в \texttt{Pending}, Job controller получал \texttt{exceeded quota} и пробовал снова. Срочная задача с высоким приоритетом ждала так же, как все: квота не знает о приоритетах, она ничего не вытесняет. Кто первым запросил освободившееся место, тот его и получил. Гарантированную долю в Kubernetes можно получить только косвенно, например выделив узлы под пространство имён. Очереди с заимствованием и вытеснением, как в YARN, даёт отдельный проект Kueue.
+
+Роль в Mesos ближе к очереди YARN. У роли есть вес, по которому DRF делит ресурсы, и квота, которая работает в обе стороны: роли гарантирован минимум и задан максимум. Ресурсы на агентах можно зарезервировать за ролью.
+
+\subsection{Что я выбрал бы для расчёта из ДЗ-3}
+
+Для расчёта, который читает файл из S3, удобнее всего Kubernetes. Локальность данных YARN здесь не нужна: данные приходят по сети из S3, а не с локального диска узла, где лежит блок HDFS. Задачу описывают три манифеста Job без собственного AM, а хранилище работает в том же кластере. Квоты и приоритеты позволяют держать в одном кластере плановые пересчёты и срочные расчёты. YARN выигрывает, когда данные лежат в HDFS и вокруг уже есть экосистема Hadoop: Hive, Spark на YARN, локальность по блокам. Mesos сейчас я выбрал бы только для поддержки существующей установки. Spark объявил поддержку Mesos устаревшей ещё в версии 3.2, а новые системы строят на Kubernetes.
+
+\section{Выводы}
+
+\begin{enumerate}
+  \item Кластер kind из трёх узлов поднят на ноутбуке. Чтобы планировщику было тесно, на каждом узле под систему отдано 8 процессоров из 12, и для подов остаётся 4.
+  \item Расчёт из ДЗ-3 с пределом памяти 256~МиБ падает через несколько секунд с \texttt{OOMKilled} и кодом 137. Пик, который считает ядро (\texttt{memory.peak}), в трёх запусках составил \wholePeaks~МиБ, \texttt{kubectl top} этот пик не увидел. Предел \wholeLimit~МиБ = пик $\times$ 1,25 с округлением, с ним расчёт проходит и занимает \wholeFinalPct\,\% предела.
+  \item RustFS из ДЗ-2 переехал в кластер StatefulSet'ом с четырьмя томами, SHA-256 всех объектов после переноса совпали. Предел памяти нужен и хранилищу: с 1~ГиБ RustFS сам получил \texttt{OOMKilled} под параллельным чтением, с 2~ГиБ по замеру перезапусков не было. Расчёт по 12 частям в Indexed Job дал файлы \texttt{k1.csv}--\texttt{k3.csv}, побайтно совпадающие с ДЗ-3, и те же топ-10 пар навыков.
+  \item Когда заявок больше, чем \texttt{allocatable}, поды ждут в \texttt{Pending} с \texttt{Insufficient cpu}, хотя процессоры реально не загружены. Срочная задача с высоким приоритетом вытеснила поды плановой, плановая пересчитала вытесненные части и всё равно совпала с ДЗ-3. Квота, наоборот, не вытесняет и о приоритетах не знает: лишние поды не создаются вовсе, и срочная задача ждёт, пока плановая отдаст квоту.
+\end{enumerate}
+
+\appendix
+\section{Репозиторий и запуск}
+
+\begin{center}\href{https://github.com/seichikk/hh-kubernetes}{\repoUrl}\end{center}
+
+Нужны Docker Desktop (не меньше 8~ГиБ для виртуальной машины), kind, kubectl и хранилище из ДЗ-3: контейнер \texttt{rustfs} с бакетом \texttt{hh-lake} на порту 19000.
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+bash scripts/00_cluster.sh     # кластер kind, metrics-server, образ
+bash scripts/01_oom.sh         # OOMKilled, замер пика, подбор предела
+bash scripts/02_storage.sh     # rustfs в кластере, перенос бакета
+bash scripts/03_parallel.sh    # 12 частей в Indexed Job, reduce, сверка с дз-3
+bash scripts/04_pending.sh     # ожидание процессора
+bash scripts/05_preempt.sh     # вытеснение по приоритету
+bash scripts/06_quota.sh       # квота пространства имён
+bash scripts/07_report.sh      # этот отчёт
+bash scripts/99_delete.sh      # удалить кластер
+\end{Verbatim}
+
+Журналы всех подов лежат в \texttt{logs/}, по папке на шаг. Там же \texttt{watch.log}~--- изменения подов по времени, по ним построены графики. Манифесты~--- в \texttt{k8s/}, выводы всех команд~--- в \texttt{report/out}, итоговые таблицы~--- в \texttt{results/k8s}.
+
+\end{document}

@@ -1,0 +1,13 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: hh
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    systemReserved:
+      cpu: "8"
+      memory: 5Gi

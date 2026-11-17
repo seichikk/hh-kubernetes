@@ -1,0 +1,279 @@
+
+==== rustfs из дз-2 внутри кластера: statefulset с четырьмя томами ====
+
+$ cat k8s/20-rustfs.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-keys
+  namespace: hh-s3
+stringData:
+  S3_ACCESS_KEY: rustfsadmin
+  S3_SECRET_KEY: rustfsadmin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  namespace: hh-s3
+spec:
+  selector:
+    app: rustfs
+  ports:
+    - name: s3
+      port: 9000
+    - name: console
+      port: 9001
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rustfs
+  namespace: hh-s3
+spec:
+  serviceName: rustfs
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rustfs
+  template:
+    metadata:
+      labels:
+        app: rustfs
+    spec:
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.1
+          env:
+            - name: RUSTFS_VOLUMES
+              value: /data/rustfs{1...4}
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-keys
+                  key: S3_ACCESS_KEY
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-keys
+                  key: S3_SECRET_KEY
+            - name: RUSTFS_ADDRESS
+              value: 0.0.0.0:9000
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "true"
+            - name: RUSTFS_CONSOLE_ADDRESS
+              value: 0.0.0.0:9001
+            - name: RUSTFS_UNSAFE_BYPASS_DISK_CHECK
+              value: "true"
+            - name: RUSTFS_OBS_LOGGER_LEVEL
+              value: warn
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet:
+              path: /health/live
+              port: s3
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: disk1
+              mountPath: /data/rustfs1
+            - name: disk2
+              mountPath: /data/rustfs2
+            - name: disk3
+              mountPath: /data/rustfs3
+            - name: disk4
+              mountPath: /data/rustfs4
+  volumeClaimTemplates:
+    - metadata:
+        name: disk1
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: disk2
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: disk3
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: disk4
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+
+$ kubectl apply -f k8s/20-rustfs.yaml
+secret/s3-keys configured
+service/rustfs unchanged
+statefulset.apps/rustfs created
+
+$ kubectl -n hh-s3 rollout status statefulset/rustfs --timeout=300s
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+
+$ kubectl -n hh-s3 get statefulset,pods,svc,pvc -o wide
+NAME                      READY   AGE   CONTAINERS   IMAGES
+statefulset.apps/rustfs   1/1     7s    rustfs       rustfs/rustfs:1.0.1
+
+NAME                             READY   STATUS      RESTARTS   AGE     IP             NODE         NOMINATED NODE   READINESS GATES
+pod/rustfs-0                     1/1     Running     0          7s      10.244.3.131   hh-worker2   <none>           <none>
+pod/s3-client-85b7d8dfd8-gthv7   1/1     Running     0          37m     10.244.1.4     hh-worker    <none>           <none>
+pod/s3-copy-gnwnk                0/1     Completed   0          7m35s   10.244.1.91    hh-worker    <none>           <none>
+
+NAME             TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)             AGE   SELECTOR
+service/rustfs   ClusterIP   10.96.11.230   <none>        9000/TCP,9001/TCP   40m   app=rustfs
+
+NAME                                   STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE   VOLUMEMODE
+persistentvolumeclaim/disk1-rustfs-0   Bound    pvc-e2ebf515-2278-4f36-8b81-c588b0f11471   1Gi        RWO            standard       <unset>                 7s    Filesystem
+persistentvolumeclaim/disk2-rustfs-0   Bound    pvc-1af7cfb9-92fd-4313-8341-87d2868458b6   1Gi        RWO            standard       <unset>                 7s    Filesystem
+persistentvolumeclaim/disk3-rustfs-0   Bound    pvc-3350277e-1bfc-477d-9bbe-738961c7d1a6   1Gi        RWO            standard       <unset>                 7s    Filesystem
+persistentvolumeclaim/disk4-rustfs-0   Bound    pvc-a3f73a59-7f58-4433-961d-4a4cd7b9bb0b   1Gi        RWO            standard       <unset>                 7s    Filesystem
+
+$ kubectl get pv
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-1af7cfb9-92fd-4313-8341-87d2868458b6   1Gi        RWO            Delete           Bound    hh-s3/disk2-rustfs-0   standard       <unset>                          2s
+pvc-3350277e-1bfc-477d-9bbe-738961c7d1a6   1Gi        RWO            Delete           Bound    hh-s3/disk3-rustfs-0   standard       <unset>                          1s
+pvc-a3f73a59-7f58-4433-961d-4a4cd7b9bb0b   1Gi        RWO            Delete           Bound    hh-s3/disk4-rustfs-0   standard       <unset>                          1s
+pvc-e2ebf515-2278-4f36-8b81-c588b0f11471   1Gi        RWO            Delete           Bound    hh-s3/disk1-rustfs-0   standard       <unset>                          4s
+
+$ kubectl -n hh-s3 logs rustfs-0 | grep -v WARNING
+Initializing data directories: /data/rustfs1 /data/rustfs2 /data/rustfs3 /data/rustfs4
+Initializing log directory: /logs
+Starting: /usr/bin/rustfs  /data/rustfs1 /data/rustfs2 /data/rustfs3 /data/rustfs4
+
+==== перенос бакета hh-lake из хранилища на хосте ====
+
+$ cat k8s/21-copy.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-copy
+  namespace: hh-s3
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: copy
+          image: hh-k8s:1
+          args: ["copy", "--prefix", "raw/it_vacancies_2024.csv", "--prefix", "results/mapreduce/"]
+          env:
+            - name: SRC_ENDPOINT
+              value: http://host.docker.internal:19000
+            - name: S3_ENDPOINT
+              value: http://rustfs:9000
+            - name: S3_BUCKET
+              value: hh-lake
+          envFrom:
+            - secretRef:
+                name: s3-keys
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+
+$ kubectl apply -f k8s/21-copy.yaml
+job.batch/s3-copy created
+
+$ kubectl -n hh-s3 logs job/s3-copy
+откуда: http://host.docker.internal:19000, куда: http://rustfs:9000, бакет hh-lake
+бакет hh-lake создан
+  raw/it_vacancies_2024.csv: 847619384 байт, sha256 303db922b541e4440906f5a7e8be32fb55e8808f950ffddb8c272f1548212a65, после переноса совпал: да
+  results/mapreduce/k1.csv: 23779 байт, sha256 cd0880521cf20e6bd88b00b818643f8eb496dc5ef11efbb81fcbcc25e1de9b80, после переноса совпал: да
+  results/mapreduce/k2.csv: 482273 байт, sha256 ce075fd4e1d7d5a58bb366a5086cfe87e2205da8dd9664d0db12c80d1d3312ee, после переноса совпал: да
+  results/mapreduce/k3.csv: 4142254 байт, sha256 a0fd213179d8fcec1cb1edb5b0281f3cab70027dd212894d1842212037a08216, после переноса совпал: да
+  results/mapreduce/summary.json: 652 байт, sha256 5a2b56d775ce15428aa3a28318ed8980a3e4b02d05807494c46720d31cbbfe2c, после переноса совпал: да
+  results/mapreduce/vacancies.jsonl: 1264674 байт, sha256 d9edded238b5915eeb606a266103a010486e7c057d0415581dda4d3de97d0d22, после переноса совпал: да
+перенесено 853533016 байт (813.99 миб) за 20.8 с
+память контейнера: пик 264 миб (277135360 байт), предел 512 миб, занято 52% предела
+процессор: 18.3 с, предел 1 cpu, притормаживаний 94 на 1.6 с
+
+$ shasum -a 256 /Users/seichik/Downloads/hh-kubernetes/../hh-mapreduce/hh-mapreduce/results/mapreduce/k2.csv
+ce075fd4e1d7d5a58bb366a5086cfe87e2205da8dd9664d0db12c80d1d3312ee  /Users/seichik/Downloads/hh-kubernetes/../hh-mapreduce/hh-mapreduce/results/mapreduce/k2.csv
+
+==== что лежит на томах ====
+
+$ kubectl -n hh-s3 exec rustfs-0 -- du -sm /data/rustfs1 /data/rustfs2 /data/rustfs3 /data/rustfs4
+408     /data/rustfs1
+408     /data/rustfs2
+408     /data/rustfs3
+408     /data/rustfs4
+
+$ kubectl -n hh-s3 exec rustfs-0 -- sh -c 'ls -l /data/rustfs1/hh-lake/raw/it_vacancies_2024.csv/*/ | head -n 6'
+total 413988
+-rw-r--r-- 1 rustfs rustfs 33556480 Nov 17 20:02 part.1
+-rw-r--r-- 1 rustfs rustfs      127 Nov 17 20:02 part.1.meta
+-rw-r--r-- 1 rustfs rustfs 33556480 Nov 17 20:02 part.10
+-rw-r--r-- 1 rustfs rustfs      127 Nov 17 20:02 part.10.meta
+-rw-r--r-- 1 rustfs rustfs 33556480 Nov 17 20:02 part.11
+
+$ kubectl -n hh-s3 exec rustfs-0 -- sh -c 'grep -E "^(anon|file) " /sys/fs/cgroup/memory.stat; cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.max'
+anon 189419520
+file 97165312
+1928982528
+2147483648
+
+==== расчёты переключаются на хранилище в кластере ====
+
+$ cat k8s/22-s3-inside.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3
+  namespace: hh
+data:
+  S3_ENDPOINT: http://rustfs.hh-s3:9000
+  S3_BUCKET: hh-lake
+  S3_KEY: raw/it_vacancies_2024.csv
+
+$ kubectl apply -f k8s/22-s3-inside.yaml
+configmap/s3 unchanged
+
+$ docker stop rustfs
+rustfs
+
+$ kubectl apply -f k8s/23-s3-client.yaml
+deployment.apps/s3-client unchanged
+
+$ kubectl -n hh-s3 rollout status deployment/s3-client --timeout=120s
+deployment "s3-client" successfully rolled out
+
+$ kubectl -n hh-s3 exec deploy/s3-client -- python -m lab.kube ls
+   847619384  raw/it_vacancies_2024.csv
+       23779  results/mapreduce/k1.csv
+      482273  results/mapreduce/k2.csv
+     4142254  results/mapreduce/k3.csv
+         652  results/mapreduce/summary.json
+     1264674  results/mapreduce/vacancies.jsonl
+всего 853533016 байт (813.99 миб)
+
+$ kubectl -n hh-s3 get pods -o wide
+NAME                         READY   STATUS      RESTARTS   AGE   IP             NODE         NOMINATED NODE   READINESS GATES
+rustfs-0                     1/1     Running     0          40s   10.244.3.131   hh-worker2   <none>           <none>
+s3-client-85b7d8dfd8-gthv7   1/1     Running     0          37m   10.244.1.4     hh-worker    <none>           <none>
+s3-copy-xxtb9                0/1     Completed   0          32s   10.244.1.129   hh-worker    <none>           <none>

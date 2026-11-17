@@ -1,0 +1,18 @@
+def resources():
+    peak = cgroup("memory.peak")
+    limit = cgroup("memory.max")
+    if peak:
+        line = f"память контейнера: пик {int(peak) / MIB:.0f} миб ({peak} байт)"
+        if limit and limit != "max":
+            line += f", предел {int(limit) / MIB:.0f} миб, занято {100 * int(peak) / int(limit):.0f}% предела"
+        else:
+            line += ", предела нет"
+        print(line)
+    stat = dict(row.split() for row in cgroup("cpu.stat").splitlines() if row)
+    quota = cgroup("cpu.max").split()
+    if stat:
+        line = f"процессор: {int(stat['usage_usec']) / 1e6:.1f} с"
+        if quota and quota[0] != "max":
+            line += f", предел {int(quota[0]) / int(quota[1]):g} cpu"
+            line += f", притормаживаний {stat.get('nr_throttled', '0')} на {int(stat.get('throttled_usec', 0)) / 1e6:.1f} с"
+        print(line)

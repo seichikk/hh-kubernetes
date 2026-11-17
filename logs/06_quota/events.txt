@@ -1,0 +1,82 @@
+LAST SEEN   TYPE      REASON             OBJECT                       MESSAGE
+86s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-mg6nl" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+86s         Normal    Pulled             pod/pairs-map-all-2-tr6w7    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+86s         Normal    Created            pod/pairs-map-all-0-zbc5k    Container created
+86s         Normal    Started            pod/pairs-map-all-0-zbc5k    Container started
+86s         Normal    Scheduled          pod/pairs-map-all-1-jfhrx    Successfully assigned hh/pairs-map-all-1-jfhrx to hh-worker
+86s         Normal    Pulled             pod/pairs-map-all-1-jfhrx    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+86s         Normal    Created            pod/pairs-map-all-1-jfhrx    Container created
+86s         Normal    Started            pod/pairs-map-all-1-jfhrx    Container started
+86s         Normal    Scheduled          pod/pairs-map-all-2-tr6w7    Successfully assigned hh/pairs-map-all-2-tr6w7 to hh-worker2
+86s         Normal    Pulled             pod/pairs-map-all-6-8fxfr    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+86s         Normal    Created            pod/pairs-map-all-6-8fxfr    Container created
+86s         Normal    Started            pod/pairs-map-all-6-8fxfr    Container started
+86s         Normal    Scheduled          pod/pairs-map-all-0-zbc5k    Successfully assigned hh/pairs-map-all-0-zbc5k to hh-worker
+86s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-0-zbc5k
+86s         Normal    Pulled             pod/pairs-map-all-0-zbc5k    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+86s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-2-tr6w7
+86s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-1-jfhrx
+86s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-4-xhd2x" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+86s         Normal    Created            pod/pairs-map-all-2-tr6w7    Container created
+86s         Normal    Started            pod/pairs-map-all-2-tr6w7    Container started
+86s         Normal    Scheduled          pod/pairs-map-all-6-8fxfr    Successfully assigned hh/pairs-map-all-6-8fxfr to hh-worker2
+86s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-5-299cm" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+86s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-6-8fxfr
+85s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-2vtnw" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+84s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-lz7rd" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+80s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-gbs9m" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+78s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-jhcmd" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+77s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-zfvp2" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+75s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-7vhdm" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+72s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-jbfll" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+71s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-qc677" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+67s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-3-bs9ss" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+66s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-3-dbbnr
+66s         Normal    Scheduled          pod/pairs-map-all-5-8fwrm    Successfully assigned hh/pairs-map-all-5-8fwrm to hh-worker2
+66s         Normal    Scheduled          pod/pairs-map-all-10-2phh2   Successfully assigned hh/pairs-map-all-10-2phh2 to hh-worker2
+66s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-10-2phh2
+66s         Warning   FailedCreate       job/pairs-map-all            Error creating: pods "pairs-map-all-7-sprbf" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+66s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-4-fdzcd
+66s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-5-8fwrm
+66s         Normal    Scheduled          pod/pairs-map-all-3-dbbnr    Successfully assigned hh/pairs-map-all-3-dbbnr to hh-worker
+66s         Normal    Pulled             pod/pairs-map-all-3-dbbnr    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+66s         Normal    Created            pod/pairs-map-all-3-dbbnr    Container created
+66s         Normal    Scheduled          pod/pairs-map-all-4-fdzcd    Successfully assigned hh/pairs-map-all-4-fdzcd to hh-worker
+65s         Normal    Started            pod/pairs-map-all-3-dbbnr    Container started
+65s         Normal    Pulled             pod/pairs-map-all-5-8fwrm    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+65s         Normal    Created            pod/pairs-map-all-10-2phh2   Container created
+65s         Normal    Pulled             pod/pairs-map-all-10-2phh2   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+65s         Normal    Created            pod/pairs-map-all-5-8fwrm    Container created
+65s         Normal    Started            pod/pairs-map-all-5-8fwrm    Container started
+65s         Normal    Started            pod/pairs-map-all-4-fdzcd    Container started
+65s         Normal    Created            pod/pairs-map-all-4-fdzcd    Container created
+65s         Normal    Pulled             pod/pairs-map-all-4-fdzcd    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+65s         Normal    Started            pod/pairs-map-all-10-2phh2   Container started
+63s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-vvb2m" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+47s         Warning   FailedCreate       job/pairs-urgent             Error creating: pods "pairs-urgent-bwvvp" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=3,limits.memory=1152Mi,requests.cpu=3,requests.memory=1152Mi, used: limits.cpu=4,limits.memory=1280Mi,requests.cpu=4,requests.memory=1280Mi, limited: limits.cpu=4,limits.memory=2Gi,requests.cpu=4,requests.memory=2Gi
+46s         Normal    Scheduled          pod/pairs-map-all-7-nmzvb    Successfully assigned hh/pairs-map-all-7-nmzvb to hh-worker2
+46s         Normal    Scheduled          pod/pairs-map-all-8-m26dl    Successfully assigned hh/pairs-map-all-8-m26dl to hh-worker2
+46s         Normal    Pulled             pod/pairs-map-all-9-dvvnh    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    Pulled             pod/pairs-map-all-8-m26dl    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Normal    SuccessfulCreate   job/pairs-map-all            Created pod: pairs-map-all-7-nmzvb
+46s         Normal    Scheduled          pod/pairs-map-all-9-dvvnh    Successfully assigned hh/pairs-map-all-9-dvvnh to hh-worker
+46s         Normal    Created            pod/pairs-map-all-7-nmzvb    Container created
+46s         Normal    Pulled             pod/pairs-map-all-7-nmzvb    Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+46s         Warning   FailedCreate       job/pairs-map-all            (combined from similar events): Error creating: pods "pairs-map-all-11-fsm6x" is forbidden: exceeded quota: hh-quota, requested: limits.cpu=1,requests.cpu=1, used: limits.cpu=4,requests.cpu=4, limited: limits.cpu=4,requests.cpu=4
+45s         Normal    Created            pod/pairs-map-all-8-m26dl    Container created
+45s         Normal    Scheduled          pod/pairs-map-all-11-vr8nd   Successfully assigned hh/pairs-map-all-11-vr8nd to hh-worker
+45s         Normal    Pulled             pod/pairs-map-all-11-vr8nd   Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+45s         Normal    SuccessfulCreate   job/pairs-map-all            (combined from similar events): Created pod: pairs-map-all-11-vr8nd
+45s         Normal    Started            pod/pairs-map-all-7-nmzvb    Container started
+45s         Normal    Created            pod/pairs-map-all-11-vr8nd   Container created
+45s         Normal    Started            pod/pairs-map-all-9-dvvnh    Container started
+45s         Normal    Created            pod/pairs-map-all-9-dvvnh    Container created
+45s         Normal    Started            pod/pairs-map-all-8-m26dl    Container started
+44s         Normal    Started            pod/pairs-map-all-11-vr8nd   Container started
+25s         Normal    Completed          job/pairs-map-all            Job completed
+15s         Normal    Created            pod/pairs-urgent-hmgc8       Container created
+15s         Normal    Pulled             pod/pairs-urgent-hmgc8       Container image "hh-k8s:1" already present on machine and can be accessed by the pod
+15s         Normal    Scheduled          pod/pairs-urgent-hmgc8       Successfully assigned hh/pairs-urgent-hmgc8 to hh-worker
+15s         Normal    SuccessfulCreate   job/pairs-urgent             Created pod: pairs-urgent-hmgc8
+14s         Normal    Started            pod/pairs-urgent-hmgc8       Container started
+4s          Normal    Completed          job/pairs-urgent             Job completed

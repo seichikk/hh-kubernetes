@@ -1,0 +1,141 @@
+
+==== кластер kind: control-plane и два рабочих узла ====
+
+$ kind version
+kind v0.33.0 go1.27.0 darwin/amd64
+
+$ cat k8s/kind.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: hh
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    systemReserved:
+      cpu: "8"
+      memory: 5Gi
+
+$ kubectl wait --for=condition=Ready nodes --all --timeout=180s
+node/hh-control-plane condition met
+node/hh-worker condition met
+node/hh-worker2 condition met
+
+$ kubectl version
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Server Version: v1.37.0
+
+$ kubectl get nodes -o wide
+NAME               STATUS   ROLES           AGE     VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                       KERNEL-VERSION            CONTAINER-RUNTIME
+hh-control-plane   Ready    control-plane   3m48s   v1.37.0   172.22.0.3    <none>        Debian GNU/Linux 13 (trixie)   7.0.12-linuxkit (amd64)   containerd://2.3.4
+hh-worker          Ready    <none>          3m26s   v1.37.0   172.22.0.4    <none>        Debian GNU/Linux 13 (trixie)   7.0.12-linuxkit (amd64)   containerd://2.3.4
+hh-worker2         Ready    <none>          3m25s   v1.37.0   172.22.0.2    <none>        Debian GNU/Linux 13 (trixie)   7.0.12-linuxkit (amd64)   containerd://2.3.4
+
+$ kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.capacity.cpu,MEMORY:.status.capacity.memory,ALLOC-CPU:.status.allocatable.cpu,ALLOC-MEMORY:.status.allocatable.memory
+NAME               CPU   MEMORY      ALLOC-CPU   ALLOC-MEMORY
+hh-control-plane   12    8126836Ki   4           2883956Ki
+hh-worker          12    8126836Ki   4           2883956Ki
+hh-worker2         12    8126836Ki   4           2883956Ki
+
+$ kubectl describe node hh-worker | sed -n '/^Capacity:/,/^System Info:/p'
+Capacity:
+  cpu:                12
+  ephemeral-storage:  490965630976
+  hugepages-2Mi:      0
+  memory:             8126836Ki
+  pods:               110
+Allocatable:
+  cpu:                4
+  ephemeral-storage:  490965630976
+  hugepages-2Mi:      0
+  memory:             2883956Ki
+  pods:               110
+System Info:
+
+==== metrics-server для kubectl top ====
+
+$ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.9.1/components.yaml
+serviceaccount/metrics-server created
+clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/system:metrics-server created
+rolebinding.rbac.authorization.k8s.io/metrics-server-auth-reader created
+clusterrolebinding.rbac.authorization.k8s.io/metrics-server:system:auth-delegator created
+clusterrolebinding.rbac.authorization.k8s.io/system:metrics-server created
+service/metrics-server created
+deployment.apps/metrics-server created
+apiservice.apiregistration.k8s.io/v1beta1.metrics.k8s.io created
+
+$ kubectl -n kube-system patch deployment metrics-server --type=json -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+deployment.apps/metrics-server patched
+
+$ kubectl -n kube-system rollout status deployment/metrics-server --timeout=240s
+Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "metrics-server" rollout to finish: 1 old replicas are pending termination...
+deployment "metrics-server" successfully rolled out
+
+==== образ с расчётом из дз-3 ====
+
+$ cat docker/Dockerfile
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN pip install pyarrow==26.0.0 boto3==1.43.116
+
+WORKDIR /app
+COPY lab/ lab/
+
+ENTRYPOINT ["python", "-m", "lab.kube"]
+
+$ docker build -q -f docker/Dockerfile -t hh-k8s:1 .
+sha256:9c5c18fdeafbd52412480dce0c4f41158cf32195fdf1e555e6284e78f976b298
+
+$ docker images hh-k8s:1
+IMAGE      ID             DISK USAGE   CONTENT SIZE   EXTRA
+hh-k8s:1   9c5c18fdeafb        463MB          117MB        
+
+$ kind load docker-image hh-k8s:1 --name hh
+Image: "hh-k8s:1" with ID "sha256:9c5c18fdeafbd52412480dce0c4f41158cf32195fdf1e555e6284e78f976b298" not yet present on node "hh-control-plane", loading...
+Image: "hh-k8s:1" with ID "sha256:9c5c18fdeafbd52412480dce0c4f41158cf32195fdf1e555e6284e78f976b298" not yet present on node "hh-worker2", loading...
+Image: "hh-k8s:1" with ID "sha256:9c5c18fdeafbd52412480dce0c4f41158cf32195fdf1e555e6284e78f976b298" not yet present on node "hh-worker", loading...
+
+$ docker exec hh-worker crictl images | grep -E 'IMAGE|hh-k8s'
+IMAGE                                           TAG                  IMAGE ID            SIZE
+docker.io/library/hh-k8s                        1                    c665fb64e0e5e       117MB
+
+==== пространства имён ====
+
+$ kubectl apply -f k8s/00-namespaces.yaml
+namespace/hh created
+namespace/hh-s3 created
+
+$ kubectl get pods -A -o wide
+NAMESPACE            NAME                                       READY   STATUS    RESTARTS   AGE     IP           NODE               NOMINATED NODE   READINESS GATES
+kube-system          coredns-559f6c778d-qdjbr                   1/1     Running   0          4m50s   10.244.0.4   hh-control-plane   <none>           <none>
+kube-system          coredns-559f6c778d-rb7w2                   1/1     Running   0          4m50s   10.244.0.2   hh-control-plane   <none>           <none>
+kube-system          etcd-hh-control-plane                      1/1     Running   0          4m58s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          kindnet-657lb                              1/1     Running   0          4m50s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          kindnet-knglv                              1/1     Running   0          4m39s   172.22.0.2   hh-worker2         <none>           <none>
+kube-system          kindnet-nxw68                              1/1     Running   0          4m40s   172.22.0.4   hh-worker          <none>           <none>
+kube-system          kube-apiserver-hh-control-plane            1/1     Running   0          4m58s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          kube-controller-manager-hh-control-plane   1/1     Running   0          4m58s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          kube-proxy-56fl9                           1/1     Running   0          4m39s   172.22.0.2   hh-worker2         <none>           <none>
+kube-system          kube-proxy-dndkd                           1/1     Running   0          4m40s   172.22.0.4   hh-worker          <none>           <none>
+kube-system          kube-proxy-zhk5c                           1/1     Running   0          4m50s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          kube-scheduler-hh-control-plane            1/1     Running   0          4m58s   172.22.0.3   hh-control-plane   <none>           <none>
+kube-system          metrics-server-76558b4bb9-gkmkl            1/1     Running   0          71s     10.244.1.2   hh-worker          <none>           <none>
+local-path-storage   local-path-provisioner-75f7fc7dc5-vc2wm    1/1     Running   0          4m47s   10.244.0.3   hh-control-plane   <none>           <none>
+
+$ kubectl top nodes
+NAME               CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+hh-control-plane   2131m        53%      828Mi           29%         
+hh-worker          1712m        42%      268Mi           9%          
+hh-worker2         1761m        44%      237Mi           8%          

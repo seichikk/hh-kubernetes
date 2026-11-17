@@ -1,0 +1,50 @@
+def map_part(a):
+    index = int(os.environ.get("JOB_COMPLETION_INDEX", a.index))
+    s3 = c.client()
+    plan = json.loads(c.get_bytes(s3, f"k8s/{RUN}/splits.json"))
+    start, end = plan["parts"][index]
+    chunk = a.chunk_mib << 20
+    parts = [[Counter() for _ in c.KS] for _ in range(a.reducers)]
+    vacancies = []
+    scanned = 0
+    emitted = [0, 0, 0]
+    gets = 0
+    tasks = 0
+    carry = b""
+    offset = start
+    t0 = time.perf_counter()
+    print(f"часть {index} из {len(plan['parts'])}: байты {start}..{end - 1} ({c.human_bytes(end - start)}), "
+          f"узел {os.environ.get('NODE_NAME', '?')}", flush=True)
+    while offset < end:
+        last = min(offset + chunk, end) - 1
+        data = s3.get_object(Bucket=c.BUCKET, Key=plan["key"], Range=f"bytes={offset}-{last}",
+                             IfMatch=plan["etag"])["Body"].read()
+        gets += 1
+        offset = last + 1
+        buf = carry + data
+        cut = len(buf) if offset >= end else mr.record_boundary(buf)
+        if cut <= 0:
+            carry = buf
+            continue
+        if a.delay:
+            time.sleep(a.delay)
+        res = mr.map_task(tasks, 1, buf[:cut], plan["fields"], "opt", -1, a.reducers)
+        carry = buf[cut:]
+        tasks += 1
+        scanned += res["scanned"]
+        vacancies.extend(res["vacancies"])
+        for i in range(3):
+            emitted[i] += res["emitted"][i]
+        for r in range(a.reducers):
+            for k in c.KS:
+                parts[r][k - 1].update(res["parts"][r][k - 1])
+    out = pack({"index": index, "pod": os.environ.get("POD_NAME", ""), "range": [start, end],
+                "etag": plan["etag"], "scanned": scanned,
+                "emitted": emitted, "vacancies": vacancies, "parts": parts})
+    key = f"k8s/{RUN}/map/part-{index:04d}.json.gz"
+    c.put_bytes(s3, key, out, "application/gzip")
+    print(f"range get: {gets}, записей {scanned}, вакансий варианта {len(vacancies)}, "
+          f"сочетаний после combiner {sum(len(parts[r][k - 1]) for r in range(a.reducers) for k in c.KS)}")
+    print(f"результат части: s3://{c.BUCKET}/{key} ({len(out)} байт), время {time.perf_counter() - t0:.2f} с")
+    resources()
+    return 0
